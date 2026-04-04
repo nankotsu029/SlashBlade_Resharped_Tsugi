@@ -16,6 +16,7 @@ import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import net.minecraft.Util;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Holder.Reference;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
@@ -176,6 +177,76 @@ public class SlashBladeDefinition {
         NeoForge.EVENT_BUS.post(postRegistry);
         return postRegistry.getBlade();
     }
+
+    // 新規：registriesを受け取るメインの実装
+    public ItemStack getBlade(Item bladeItem, @Nullable HolderLookup.Provider registries) {
+
+        var preEvent = new SlashBladeRegistryEvent.Pre(this);
+        NeoForge.EVENT_BUS.post(preEvent);
+        if (preEvent.isCanceled()) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack result = new ItemStack(bladeItem);
+        var state = ItemSlashBlade.getBladeState(result);
+        if (state == null) state = ItemSlashBlade.getOrCreateBladeState(result);
+        state.setNonEmpty();
+        state.setBaseAttackModifier(this.stateDefinition.getBaseAttackModifier());
+        state.setMaxDamage(this.stateDefinition.getMaxDamage());
+        state.setComboRoot(this.stateDefinition.getComboRoot());
+        state.setSlashArtsKey(this.stateDefinition.getSpecialAttackType());
+
+        this.stateDefinition.getSpecialEffects().forEach(state::addSpecialEffect);
+
+        final var bladeState = state;
+        this.stateDefinition.getDefaultType().forEach(type -> {
+            switch (type) {
+                case BEWITCHED -> bladeState.setDefaultBewitched(true);
+                case BROKEN -> {
+                    bladeState.setDamage(bladeState.getMaxDamage() - 1); // ← 前回の修正
+                    bladeState.setBroken(true);
+                }
+                case SEALED -> bladeState.setSealed(true);
+                default -> {}
+            }
+        });
+
+        state.setModel(this.renderDefinition.getModelName());
+        state.setTexture(this.renderDefinition.getTextureName());
+        state.setColorCode(this.renderDefinition.getSummonedSwordColor());
+        state.setEffectColorInverse(this.renderDefinition.isSummonedSwordColorInverse());
+        state.setCarryType(this.renderDefinition.getStandbyRenderType());
+        if (!this.getName().equals(SlashBlade.prefix("none"))) {
+            state.setTranslationKey(this.getTranslationKey());
+        }
+
+        ItemSlashBlade.setBladeState(result, state);
+
+        for (var instance : this.enchantments) {
+            ResourceKey<Enchantment> key = ResourceKey.create(
+                    Registries.ENCHANTMENT, instance.getEnchantmentID());
+            Holder<Enchantment> enchantment = null;
+            if (registries != null) {
+                // クライアント側のレジストリから解決 → ネットワーク送信時にIDが一致する
+                enchantment = registries.lookupOrThrow(Registries.ENCHANTMENT)
+                        .getOrThrow(key);
+            } else {
+                enchantment = EnchantmentCompat.resolve(instance.getEnchantmentID());
+            }
+            if (enchantment != null) {
+                result.enchant(enchantment, instance.getEnchantmentLevel());
+            }
+        }
+
+        if (this.stateDefinition.isUnbreakable()) {
+            result.set(DataComponents.UNBREAKABLE, new Unbreakable(true));
+        }
+
+        var postRegistry = new SlashBladeRegistryEvent.Post(this, result);
+        NeoForge.EVENT_BUS.post(postRegistry);
+        return postRegistry.getBlade();
+    }
+
     public ItemStack getBlade() {
         return getBlade(getItem(), null);
     }

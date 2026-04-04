@@ -18,10 +18,12 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.item.ClampedItemPropertyFunction;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
@@ -88,15 +90,16 @@ public class ClientHandler {
     }
 
     public static void onCreativeTagBuilding(BuildCreativeModeTabContentsEvent event) {
-        SlashBlade.getSlashBladeDefinitionRegistry(event.getParameters().holders())
+        HolderLookup.Provider registries = event.getParameters().holders();
+        SlashBlade.getSlashBladeDefinitionRegistry(registries)
                 .listElements()
                 .sorted(SlashBladeDefinition.COMPARATOR).forEach(entry -> {
                     if (!event.getTabKey().location().equals(entry.value().getCreativeGroup())) {
                         return;
                     }
-
-                    if (!entry.value().getBlade().isEmpty()) {
-                        event.accept(entry.value().getBlade());
+                    ItemStack blade = entry.value().getBlade(entry.value().getItem(), registries);
+                    if (!blade.isEmpty()) {
+                        event.accept(blade);
                     }
                 });
     }

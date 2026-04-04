@@ -54,8 +54,6 @@ public class SlashBlade {
 
         modBus.addListener(this::setup);
 
-        // Register ourselves for server and other game events we are interested in
-        NeoForge.EVENT_BUS.register(this);
         ModAttributes.ATTRIBUTES.register(modBus);
         ModDataComponents.DATA_COMPONENTS.register(modBus);
         ModAttachments.ATTACHMENT_TYPES.register(modBus);

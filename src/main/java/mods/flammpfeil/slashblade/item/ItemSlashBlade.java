@@ -714,13 +714,14 @@ public class ItemSlashBlade extends SwordItem {
     // initCapabilities() removed — BladeState is now a DataComponent (ModDataComponents.BLADE_STATE).
     // NeoForge 1.21.1: set default component value via Item.Properties.component() at registration time.
 
-    /**
-     * @return true = cancel : false = swing
-     */
+    @SuppressWarnings({"removal", "deprecation"})
     @Override
     public boolean onEntitySwing(ItemStack stack, LivingEntity entity) {
-        SlashBladeState s = getBladeState(stack);
-        return s == null || s.getLastActionTime() != entity.level().getGameTime();
+        SlashBladeState state = getBladeState(stack);
+        if (state == null) {
+            return true;
+        }
+        return state.getLastActionTime() != entity.level().getGameTime();
     }
 
     @Override
@@ -749,7 +750,7 @@ public class ItemSlashBlade extends SwordItem {
         return super.getEntityLifespan(itemStack, world);// Short.MAX_VALUE;
     }
 
-    @Override
+    /*@Override
     public void initializeClient(Consumer<IClientItemExtensions> consumer) {
 
         consumer.accept(new IClientItemExtensions() {
@@ -764,5 +765,20 @@ public class ItemSlashBlade extends SwordItem {
         });
 
         super.initializeClient(consumer);
+    }*/
+    @SuppressWarnings({"removal", "deprecation"})
+    @Override
+    public void initializeClient(Consumer<IClientItemExtensions> consumer) {
+        consumer.accept(new IClientItemExtensions() {
+            private final BlockEntityWithoutLevelRenderer renderer = new SlashBladeTEISR(
+                    Minecraft.getInstance().getBlockEntityRenderDispatcher(),
+                    Minecraft.getInstance().getEntityModels()
+            );
+
+            @Override
+            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                return renderer;
+            }
+        });
     }
 }

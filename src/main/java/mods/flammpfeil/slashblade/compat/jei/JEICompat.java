@@ -2,6 +2,7 @@ package mods.flammpfeil.slashblade.compat.jei;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.ingredients.subtypes.ISubtypeInterpreter;
 import mezz.jei.api.ingredients.subtypes.UidContext;
 import mezz.jei.api.recipe.category.extensions.vanilla.smithing.IExtendableSmithingRecipeCategory;
 import mezz.jei.api.registration.ISubtypeRegistration;
@@ -24,7 +25,23 @@ public class JEICompat implements IModPlugin {
 
     @Override
     public void registerItemSubtypes(ISubtypeRegistration registration) {
-        registration.registerSubtypeInterpreter(SlashBladeItems.SLASHBLADE.get(), JEICompat::syncSlashBlade);
+        registration.registerSubtypeInterpreter(
+                SlashBladeItems.SLASHBLADE.get(),
+                new ISubtypeInterpreter<ItemStack>() {
+                    @Override
+                    public @NotNull Object getSubtypeData(@NotNull ItemStack stack, @NotNull UidContext context) {
+                        var bs = ItemSlashBlade.getBladeState(stack);
+                        return bs != null ? bs.getTranslationKey() : "";
+                    }
+
+                    @Override
+                    @Deprecated(forRemoval = true)
+                    public @NotNull String getLegacyStringSubtypeInfo(@NotNull ItemStack stack, @NotNull UidContext context) {
+                        Object data = getSubtypeData(stack, context);
+                        return String.valueOf(data);
+                    }
+                }
+        );
     }
 
     public static String syncSlashBlade(ItemStack stack, UidContext context) {

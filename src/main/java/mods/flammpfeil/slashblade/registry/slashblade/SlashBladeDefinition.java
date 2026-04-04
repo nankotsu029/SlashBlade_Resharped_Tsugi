@@ -136,7 +136,7 @@ public class SlashBladeDefinition {
             switch (type) {
                 case BEWITCHED -> bladeState.setDefaultBewitched(true);
                 case BROKEN -> {
-                    result.setDamageValue(result.getMaxDamage() - 1);
+                    bladeState.setDamage(result.getMaxDamage() - 1);
                     bladeState.setBroken(true);
                 }
                 case SEALED -> bladeState.setSealed(true);

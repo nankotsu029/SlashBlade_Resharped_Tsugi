@@ -17,6 +17,7 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.util.TriState;
 import org.jetbrains.annotations.NotNull;
 
 public class BladeStandEntityRenderer extends ItemFrameRenderer<BladeStandEntity> {
@@ -93,17 +94,17 @@ public class BladeStandEntityRenderer extends ItemFrameRenderer<BladeStandEntity
             }
         }
 
-        net.minecraftforge.client.event.RenderNameTagEvent renderNameplateEvent = new net.minecraftforge.client.event.RenderNameTagEvent(
+        net.neoforged.neoforge.client.event.RenderNameTagEvent renderNameplateEvent = new net.neoforged.neoforge.client.event.RenderNameTagEvent(
                 entity, entity.getDisplayName(), this, matrixStackIn, bufferIn, packedLightIn, partialTicks);
         // net.minecraftforge.client.event.RenderNameplateEvent renderNameplateEvent =
         // new net.minecraftforge.client.event.RenderNameplateEvent(entity,
         // entity.getDisplayName().getFormatedText(), this, matrixStackIn, bufferIn,
         // packedLightIn);
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(renderNameplateEvent);
-        if (renderNameplateEvent.getResult() != net.minecraftforge.eventbus.api.Event.Result.DENY
-                && (renderNameplateEvent.getResult() == net.minecraftforge.eventbus.api.Event.Result.ALLOW
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(renderNameplateEvent);
+        if (renderNameplateEvent.canRender() != TriState.FALSE
+                && (renderNameplateEvent.canRender() == TriState.TRUE
                 || this.shouldShowName(entity))) {
-            this.renderNameTag(entity, renderNameplateEvent.getContent(), matrixStackIn, bufferIn, packedLightIn);
+            this.renderNameTag(entity, renderNameplateEvent.getContent(), matrixStackIn, bufferIn, packedLightIn, partialTicks);
         }
     }
 

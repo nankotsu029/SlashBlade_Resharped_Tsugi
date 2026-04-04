@@ -2,32 +2,31 @@ package mods.flammpfeil.slashblade.ability;
 
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank;
+import mods.flammpfeil.slashblade.capability.concentrationrank.ConcentrationRank;
 import mods.flammpfeil.slashblade.capability.concentrationrank.IConcentrationRank;
-import mods.flammpfeil.slashblade.capability.inputstate.CapabilityInputState;
-import mods.flammpfeil.slashblade.capability.inputstate.IInputState;
-import mods.flammpfeil.slashblade.capability.slashblade.CapabilitySlashBlade;
-import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
+import mods.flammpfeil.slashblade.capability.inputstate.InputState;
+import mods.flammpfeil.slashblade.capability.slashblade.SlashBladeState;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
 import mods.flammpfeil.slashblade.registry.combo.ComboState;
 import mods.flammpfeil.slashblade.util.AdvancementHelper;
+import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import mods.flammpfeil.slashblade.util.InputCommand;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.bus.api.SubscribeEvent;
 
 import java.util.EnumSet;
 
@@ -44,32 +43,31 @@ public class Guard {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
-    static public final ResourceLocation ADVANCEMENT_GUARD = new ResourceLocation(SlashBlade.MODID, "abilities/guard");
-    static public final ResourceLocation ADVANCEMENT_GUARD_JUST = new ResourceLocation(SlashBlade.MODID,
-            "abilities/guard_just");
+    static public final ResourceLocation ADVANCEMENT_GUARD = SlashBlade.prefix("abilities/guard");
+    static public final ResourceLocation ADVANCEMENT_GUARD_JUST = SlashBlade.prefix("abilities/guard_just");
 
     final static EnumSet<InputCommand> move = EnumSet.of(InputCommand.FORWARD, InputCommand.BACK, InputCommand.LEFT,
             InputCommand.RIGHT);
 
     @SubscribeEvent
-    public void onLivingAttack(LivingAttackEvent event) {
+    public void onLivingAttack(LivingIncomingDamageEvent event) {
         LivingEntity victim = event.getEntity();
         DamageSource source = event.getSource();
 
         // begin executable check -----------------
         // item check
         ItemStack stack = victim.getMainHandItem();
-        LazyOptional<ISlashBladeState> slashBlade = stack.getCapability(CapabilitySlashBlade.BLADESTATE);
-        if (!slashBlade.isPresent()) {
+        SlashBladeState slashBlade = ItemSlashBlade.getBladeState(stack);
+        if (slashBlade == null) {
             return;
         }
-        if (slashBlade.filter(ISlashBladeState::isBroken).isPresent()) {
+        if (slashBlade.isBroken()) {
             return;
         }
-        if (stack.getEnchantmentLevel(Enchantments.THORNS) <= 0) {
+        if (EnchantmentCompat.getLevel(stack, victim, Enchantments.THORNS) <= 0) {
             return;
         }
 
@@ -77,23 +75,19 @@ public class Guard {
         if (!victim.onGround()) {
             return;
         }
-        LazyOptional<IInputState> input = victim.getCapability(CapabilityInputState.INPUT_STATE);
-        if (!input.isPresent()) {
-            return;
-        }
+        InputState input = victim.getData(ItemSlashBlade.INPUT_STATE);
 
-        // commanc check
+        // command check
         InputCommand targetCommand = InputCommand.SNEAK;
-        boolean handleCommand = input.filter(i -> i.getCommands().contains(targetCommand)
-                && i.getCommands().stream().noneMatch(move::contains)).isPresent();
+        boolean handleCommand = input.getCommands().contains(targetCommand)
+                && input.getCommands().stream().noneMatch(move::contains);
 
         if (handleCommand) {
             AdvancementHelper.grantCriterion(victim, ADVANCEMENT_GUARD);
         }
 
         // ninja run
-        handleCommand |= (input.filter(i -> i.getCommands().contains(InputCommand.SPRINT)).isPresent()
-                && victim.isSprinting());
+        handleCommand |= (input.getCommands().contains(InputCommand.SPRINT) && victim.isSprinting());
 
         if (!handleCommand) {
             return;
@@ -106,10 +100,10 @@ public class Guard {
 
         // performance branch -----------------
         // just check
-        long timeStartPress = input.map(i -> i.getLastPressTime(targetCommand)).orElse(-1L);
+        long timeStartPress = input.getLastPressTime(targetCommand);
         long timeCurrent = victim.level().getGameTime();
 
-        int soulSpeedLevel = EnchantmentHelper.getEnchantmentLevel(Enchantments.SOUL_SPEED, victim);
+        int soulSpeedLevel = EnchantmentCompat.getLevel(victim, Enchantments.SOUL_SPEED);
         int justAcceptancePeriod = 5 + soulSpeedLevel;
 
         boolean isJust = false;
@@ -120,8 +114,8 @@ public class Guard {
 
         // rank check
         boolean isHighRank = false;
-        LazyOptional<IConcentrationRank> rank = victim.getCapability(CapabilityConcentrationRank.RANK_POINT);
-        if (rank.filter(r -> IConcentrationRank.ConcentrationRanks.S.level <= r.getRank(timeCurrent).level).isPresent()) {
+        ConcentrationRank rank = victim.getData(CapabilityConcentrationRank.RANK_POINT);
+        if (IConcentrationRank.ConcentrationRanks.S.level <= rank.getRank(timeCurrent).level) {
             isHighRank = true;
         }
 
@@ -138,14 +132,11 @@ public class Guard {
                 return;
             }
 
-            boolean inMotion = slashBlade.filter(s -> {
-                ResourceLocation current = s.resolvCurrentComboState(victim);
-                ComboState currentCS = ComboStateRegistry.REGISTRY.get().getValue(current);
-                if (currentCS != null) {
-                    return !current.equals(ComboStateRegistry.NONE.getId()) && current == currentCS.getNext(victim);
-                }
-                return false;
-            }).isPresent();
+            ResourceLocation current = slashBlade.resolvCurrentComboState(victim);
+            ComboState currentCS = ComboStateRegistry.REGISTRY.get(current);
+            boolean inMotion = currentCS != null
+                    && !current.equals(ComboStateRegistry.NONE.getId())
+                    && current == currentCS.getNext(victim);
             if (inMotion) {
                 return;
             }
@@ -161,9 +152,9 @@ public class Guard {
 
         // Motion
         if (isJust) {
-            slashBlade.ifPresent(s -> s.updateComboSeq(victim, ComboStateRegistry.COMBO_A1.getId()));
+            slashBlade.updateComboSeq(victim, ComboStateRegistry.COMBO_A1.getId());
         } else {
-            slashBlade.ifPresent(s -> s.updateComboSeq(victim, ComboStateRegistry.COMBO_A1_END2.getId()));
+            slashBlade.updateComboSeq(victim, ComboStateRegistry.COMBO_A1_END2.getId());
         }
 
         // DirectAttack knockback
@@ -181,7 +172,7 @@ public class Guard {
 
         // rankup
         if (isJust) {
-            rank.ifPresent(r -> r.addRankPoint(victim.level().damageSources().thorns(victim)));
+            rank.addRankPoint(victim.level().damageSources().thorns(victim));
         }
 
         // play sound
@@ -197,9 +188,8 @@ public class Guard {
 
         // cost-------------------------
         if (!isJust && !isHighRank) {
-            slashBlade.ifPresent(s -> stack.hurtAndBreak(1, victim, ItemSlashBlade.getOnBroken(stack)));
+            stack.hurtAndBreak(1, victim, EquipmentSlot.MAINHAND);
         }
-
     }
 
     public boolean isInsideGuardableRange(DamageSource source, LivingEntity victim) {

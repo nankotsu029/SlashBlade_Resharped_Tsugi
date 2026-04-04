@@ -1,5 +1,6 @@
 package mods.flammpfeil.slashblade.util;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
 import com.google.common.collect.Lists;
 import mods.flammpfeil.slashblade.SlashBladeConfig;
 import mods.flammpfeil.slashblade.data.tag.SlashBladeEntityTypeTagProvider.EntityTypeTags;
@@ -12,6 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
@@ -24,10 +26,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.ForgeMod;
-import net.minecraftforge.common.extensions.IForgeEntity;
-import net.minecraftforge.entity.PartEntity;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.entity.PartEntity;
+import net.neoforged.bus.api.SubscribeEvent;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -141,7 +141,7 @@ public class TargetSelector {
         list1.addAll(getReflectableEntitiesWithinAABB(attacker));
         list1.addAll(getExtinguishableEntitiesWithinAABB(attacker));
 
-        list1.addAll(world.getEntitiesOfClass(LivingEntity.class, aabb.inflate(5), IForgeEntity::isMultipartEntity).stream()
+        list1.addAll(world.getEntitiesOfClass(LivingEntity.class, aabb.inflate(5), Entity::isMultipartEntity).stream()
                 .flatMap(e -> (e.isMultipartEntity()) ? Stream.of(e.getParts()) : Stream.of(e)).filter(t -> {
                     boolean result = false;
                     var check = new AttackablePredicate();
@@ -235,9 +235,9 @@ public class TargetSelector {
 
     static public double getResolvedReach(LivingEntity user) {
         double reach = 4.0D; /* 4 block */
-        AttributeInstance attrib = user.getAttribute(ForgeMod.ENTITY_REACH.get());
+        AttributeInstance attrib = user.getAttribute(Attributes.ENTITY_INTERACTION_RANGE);
         if (attrib != null) {
-            reach = attrib.getValue() - 1;
+            reach = attrib.getValue() + 1.0D;
         }
         return reach;
     }
@@ -264,28 +264,18 @@ public class TargetSelector {
             return;
         }
 
-        stack.getCapability(ItemSlashBlade.BLADESTATE).ifPresent(s -> {
-            Entity tmp = s.getTargetEntity(sender.level());
-            if (tmp == null) {
-                return;
+        var bs = ItemSlashBlade.getBladeState(stack);
+        if (bs != null) {
+            Entity tmp = bs.getTargetEntity(sender.level());
+            if (tmp instanceof LivingEntity target && target.getLastHurtByMob() != sender) {
+                target.setLastHurtByMob(sender);
+                if (target.level() instanceof ServerLevel sw) {
+                    sw.sendParticles(sender, ParticleTypes.ANGRY_VILLAGER, false, target.getX(),
+                            target.getY() + target.getEyeHeight(), target.getZ(), 5, target.getBbWidth() * 1.5,
+                            target.getBbHeight(), target.getBbWidth() * 1.5, 0.02D);
+                }
             }
-            if (!(tmp instanceof LivingEntity target)) {
-                return;
-            }
-
-            if (target.getLastHurtByMob() == sender) {
-                return;
-            }
-
-            target.setLastHurtByMob(sender);
-
-            if (target.level() instanceof ServerLevel sw) {
-
-                sw.sendParticles(sender, ParticleTypes.ANGRY_VILLAGER, false, target.getX(),
-                        target.getY() + target.getEyeHeight(), target.getZ(), 5, target.getBbWidth() * 1.5,
-                        target.getBbHeight(), target.getBbWidth() * 1.5, 0.02D);
-            }
-        });
+        }
     }
 
     public static class SlashBladeTargetingConditions extends TargetingConditions {

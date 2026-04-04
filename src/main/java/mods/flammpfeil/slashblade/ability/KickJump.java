@@ -1,6 +1,8 @@
 package mods.flammpfeil.slashblade.ability;
 
+// TODO(neoforge-1.21.1): Replace Forge TickEvent usages with the split NeoForge tick events.
 import mods.flammpfeil.slashblade.SlashBlade;
+import mods.flammpfeil.slashblade.capability.slashblade.SlashBladeState;
 import mods.flammpfeil.slashblade.event.handler.InputCommandEvent;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
@@ -21,9 +23,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.bus.api.SubscribeEvent;
 
 import java.util.EnumSet;
 
@@ -40,13 +42,13 @@ public class KickJump {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
     static final TargetingConditions tc = new TargetingConditions(false).ignoreLineOfSight()
             .ignoreInvisibilityTesting();
 
-    static public final ResourceLocation ADVANCEMENT_KICK_JUMP = new ResourceLocation(SlashBlade.MODID,
+    static public final ResourceLocation ADVANCEMENT_KICK_JUMP = ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID,
             "abilities/kick_jump");
 
     static public final String KEY_KICKJUMP = "sb.kickjump";
@@ -107,7 +109,8 @@ public class KickJump {
         AdvancementHelper.grantCriterion(sender, ADVANCEMENT_KICK_JUMP);
         sender.playNotifySound(SoundEvents.PLAYER_SMALL_FALL, SoundSource.PLAYERS, 0.5f, 1.2f);
 
-        sender.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).ifPresent(s -> s.updateComboSeq(sender, ComboStateRegistry.NONE.getId()));
+        SlashBladeState bladeState = ItemSlashBlade.getBladeState(sender.getMainHandItem());
+        if (bladeState != null) bladeState.updateComboSeq(sender, ComboStateRegistry.NONE.getId());
 
         if (worldIn instanceof ServerLevel) {
             ((ServerLevel) worldIn).sendParticles(
@@ -117,9 +120,9 @@ public class KickJump {
     }
 
     @SubscribeEvent
-    public void onTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase == TickEvent.Phase.START) {
-            LivingEntity player = event.player;
+    public void onTick(PlayerTickEvent.Pre event) {
+        {
+            LivingEntity player = event.getEntity();
             // cooldown
             if (player.onGround() && 0 < player.getPersistentData().getInt(KEY_KICKJUMP)) {
 

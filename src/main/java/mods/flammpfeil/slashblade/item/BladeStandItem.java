@@ -2,6 +2,7 @@ package mods.flammpfeil.slashblade.item;
 
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.entity.BladeStandEntity;
+import mods.flammpfeil.slashblade.util.ItemStackDataCompat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -9,6 +10,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.HangingEntityItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
@@ -41,9 +43,9 @@ public class BladeStandItem extends HangingEntityItem {
             Level world = context.getLevel();
             HangingEntity hangingentity = BladeStandEntity.createInstanceFromPos(world, blockpos1, direction, this);
 
-            CompoundTag compoundnbt = itemstack.getTag();
+            CompoundTag compoundnbt = ItemStackDataCompat.getCustomData(itemstack);
             if (compoundnbt != null) {
-                EntityType.updateCustomEntityTag(world, playerentity, hangingentity, compoundnbt);
+                EntityType.updateCustomEntityTag(world, playerentity, hangingentity, CustomData.of(compoundnbt));
             }
 
             if (hangingentity.survives()) {

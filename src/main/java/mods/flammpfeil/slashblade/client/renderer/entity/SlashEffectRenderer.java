@@ -16,16 +16,16 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.NotNull;
 
 @OnlyIn(Dist.CLIENT)
 public class SlashEffectRenderer<T extends EntitySlashEffect> extends EntityRenderer<T> {
 
-    static private final ResourceLocation modelLocation = new ResourceLocation(SlashBlade.MODID,
+    static private final ResourceLocation modelLocation = ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID,
             "model/util/slash.obj");
-    static private final ResourceLocation textureLocation = new ResourceLocation(SlashBlade.MODID,
+    static private final ResourceLocation textureLocation = ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID,
             "model/util/slash.png");
 
     @Override

@@ -9,9 +9,9 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.client.event.RenderLivingEvent;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.RenderLivingEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.bus.api.SubscribeEvent;
 
 public class UserPoseOverrider {
 
@@ -29,7 +29,7 @@ public class UserPoseOverrider {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
         UsePoseOverrider = true;
     }
 

@@ -1,5 +1,7 @@
 package mods.flammpfeil.slashblade.entity;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
+// TODO(neoforge-1.21.1): Rewrite this class to the NeoForge payload API; old Forge networking types remain.
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.ability.StunManager;
 import mods.flammpfeil.slashblade.util.KnockBacks;
@@ -15,7 +17,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.PlayMessages;
 
 public class EntityStormSwords extends EntityAbstractSummonedSword {
     private static final EntityDataAccessor<Boolean> IT_FIRED = SynchedEntityData.defineId(EntityStormSwords.class,
@@ -28,10 +29,10 @@ public class EntityStormSwords extends EntityAbstractSummonedSword {
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
 
-        this.entityData.define(IT_FIRED, false);
+        builder.define(IT_FIRED, false);
     }
 
     public void doFire() {
@@ -42,7 +43,7 @@ public class EntityStormSwords extends EntityAbstractSummonedSword {
         return this.getEntityData().get(IT_FIRED);
     }
 
-    public static EntityStormSwords createInstance(PlayMessages.SpawnEntity packet, Level worldIn) {
+    public static EntityStormSwords createInstance(Level worldIn) {
         return new EntityStormSwords(SlashBlade.RegistryEvents.StormSwords, worldIn);
     }
 
@@ -64,9 +65,7 @@ public class EntityStormSwords extends EntityAbstractSummonedSword {
 
         // this.startRiding()
         this.setDeltaMovement(Vec3.ZERO);
-        if (canUpdate()) {
-            this.baseTick();
-        }
+        this.baseTick();
 
         faceEntityStandby();
         // this.getVehicle().positionRider(this);
@@ -102,7 +101,7 @@ public class EntityStormSwords extends EntityAbstractSummonedSword {
         }
 
         if (raytraceresult != null && raytraceresult.getType() == HitResult.Type.ENTITY
-                && !net.minecraftforge.event.ForgeEventFactory.onProjectileImpact(this, raytraceresult)) {
+                && !net.neoforged.neoforge.event.EventHooks.onProjectileImpact(this, raytraceresult)) {
             this.onHit(raytraceresult);
             this.resetAlreadyHits();
             this.hasImpulse = true;

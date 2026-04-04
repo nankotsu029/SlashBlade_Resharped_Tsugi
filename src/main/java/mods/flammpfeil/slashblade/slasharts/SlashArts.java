@@ -3,13 +3,13 @@ package mods.flammpfeil.slashblade.slasharts;
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
 import mods.flammpfeil.slashblade.registry.SlashArtsRegistry;
+import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import net.minecraft.Util;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 import java.util.Objects;
@@ -20,7 +20,7 @@ public class SlashArts {
             .createRegistryKey(SlashBlade.prefix("slash_arts"));
 
     public static ResourceLocation getRegistryKey(SlashArts state) {
-        return SlashArtsRegistry.REGISTRY.get().getKey(state);
+        return SlashArtsRegistry.REGISTRY.getKey(state);
     }
 
     static public final int ChargeTicks = 9;
@@ -29,7 +29,7 @@ public class SlashArts {
 
     static public int getJustReceptionSpan(LivingEntity user) {
         return Math.min(ChargeJustTicksMax,
-                ChargeJustTicks + EnchantmentHelper.getEnchantmentLevel(Enchantments.SOUL_SPEED, user));
+                ChargeJustTicks + EnchantmentCompat.getLevel(user, Enchantments.SOUL_SPEED));
     }
 
     public enum ArtsType {
@@ -94,14 +94,14 @@ public class SlashArts {
 
     @Override
     public String toString() {
-        return Objects.requireNonNull(SlashArtsRegistry.REGISTRY.get().getKey(this)).toString();
+        return Objects.requireNonNull(SlashArtsRegistry.REGISTRY.getKey(this)).toString();
     }
 
     private String descriptionId;
 
     protected String getOrCreateDescriptionId() {
         if (this.descriptionId == null) {
-            this.descriptionId = Util.makeDescriptionId("slash_art", SlashArtsRegistry.REGISTRY.get().getKey(this));
+            this.descriptionId = Util.makeDescriptionId("slash_art", SlashArtsRegistry.REGISTRY.getKey(this));
         }
         return this.descriptionId;
     }

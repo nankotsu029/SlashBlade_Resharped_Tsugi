@@ -13,7 +13,7 @@
       }
     },
     "D": {
-      "tag": "forge:dyes/red"
+      "tag": "c:dyes/red"
     },
     "I": {
       "item": "slashblade:proudsoul"
@@ -22,7 +22,7 @@
       "item": "slashblade:proudsoul_ingot"
     },
     "S": {
-      "tag": "forge:string"
+      "tag": "c:string"
     }
   },
   "pattern": [

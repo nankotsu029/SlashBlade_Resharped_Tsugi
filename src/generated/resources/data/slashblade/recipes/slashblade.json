@@ -12,19 +12,19 @@
       }
     },
     "D": {
-      "tag": "forge:storage_blocks/coal"
+      "tag": "c:storage_blocks/coal"
     },
     "E": {
-      "tag": "forge:rods/blaze"
+      "tag": "c:rods/blaze"
     },
     "I": {
-      "tag": "forge:ingots/gold"
+      "tag": "c:ingots/gold"
     },
     "P": {
-      "tag": "forge:dyes/blue"
+      "tag": "c:dyes/blue"
     },
     "S": {
-      "tag": "forge:string"
+      "tag": "c:string"
     }
   },
   "pattern": [

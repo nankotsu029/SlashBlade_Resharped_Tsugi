@@ -1,5 +1,8 @@
 package mods.flammpfeil.slashblade.registry.slashblade;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
+// TODO(neoforge-1.21.1): Replace remaining ForgeRegistries references with BuiltInRegistries, Registries, or NeoForgeRegistries as appropriate.
+// TODO(neoforge-1.21.1): Replace ForgeRegistries.ENCHANTMENTS with a RegistryAccess/Registries.ENCHANTMENT lookup.
 import com.google.common.collect.Lists;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -9,15 +12,18 @@ import mods.flammpfeil.slashblade.capability.slashblade.SlashBladeState;
 import mods.flammpfeil.slashblade.event.SlashBladeRegistryEvent;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.registry.SlashBladeItems;
+import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import net.minecraft.Util;
 import net.minecraft.core.Holder.Reference;
 import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.world.item.component.Unbreakable;
+import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
@@ -108,12 +114,15 @@ public class SlashBladeDefinition {
 
     public ItemStack getBlade(Item bladeItem) {
 
-        if (MinecraftForge.EVENT_BUS.post(new SlashBladeRegistryEvent.Pre(this))) {
+        var preEvent = new SlashBladeRegistryEvent.Pre(this);
+        NeoForge.EVENT_BUS.post(preEvent);
+        if (preEvent.isCanceled()) {
             return ItemStack.EMPTY;
         }
 
         ItemStack result = new ItemStack(bladeItem);
-        var state = result.getCapability(ItemSlashBlade.BLADESTATE).orElse(new SlashBladeState(result));
+        var state = ItemSlashBlade.getBladeState(result);
+        if (state == null) state = ItemSlashBlade.getOrCreateBladeState(result);
         state.setNonEmpty();
         state.setBaseAttackModifier(this.stateDefinition.getBaseAttackModifier());
         state.setMaxDamage(this.stateDefinition.getMaxDamage());
@@ -122,14 +131,15 @@ public class SlashBladeDefinition {
 
         this.stateDefinition.getSpecialEffects().forEach(state::addSpecialEffect);
 
+        final var bladeState = state;
         this.stateDefinition.getDefaultType().forEach(type -> {
             switch (type) {
-                case BEWITCHED -> state.setDefaultBewitched(true);
+                case BEWITCHED -> bladeState.setDefaultBewitched(true);
                 case BROKEN -> {
                     result.setDamageValue(result.getMaxDamage() - 1);
-                    state.setBroken(true);
+                    bladeState.setBroken(true);
                 }
-                case SEALED -> state.setSealed(true);
+                case SEALED -> bladeState.setSealed(true);
                 default -> {
                 }
             }
@@ -144,26 +154,26 @@ public class SlashBladeDefinition {
             state.setTranslationKey(this.getTranslationKey());
         }
 
-        result.getOrCreateTag().put("bladeState", state.serializeNBT());
+        ItemSlashBlade.setBladeState(result, state);
 
         for (var instance : this.enchantments) {
-            var enchantment = ForgeRegistries.ENCHANTMENTS.getValue(instance.getEnchantmentID());
+            var enchantment = EnchantmentCompat.resolve(instance.getEnchantmentID());
             if (enchantment != null) {
                 result.enchant(enchantment, instance.getEnchantmentLevel());
             }
 
         }
         if (this.stateDefinition.isUnbreakable()) {
-            result.getOrCreateTag().putBoolean("Unbreakable", true);
+            result.set(DataComponents.UNBREAKABLE, new Unbreakable(true));
         }
         var postRegistry = new SlashBladeRegistryEvent.Post(this, result);
-        MinecraftForge.EVENT_BUS.post(postRegistry);
+        NeoForge.EVENT_BUS.post(postRegistry);
         return postRegistry.getBlade();
     }
 
     public Item getItem() {
         @Nullable
-        Item value = ForgeRegistries.ITEMS.getValue(this.item);
+        Item value = BuiltInRegistries.ITEM.getOptional(this.item).orElse(null);
         if (value == null) {
             return SlashBladeItems.SLASHBLADE.get();
         }

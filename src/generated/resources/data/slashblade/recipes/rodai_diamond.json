@@ -17,7 +17,7 @@
       "item": "slashblade:proudsoul_trapezohedron"
     },
     "S": {
-      "tag": "forge:string"
+      "tag": "c:string"
     },
     "W": {
       "item": "minecraft:diamond_sword"

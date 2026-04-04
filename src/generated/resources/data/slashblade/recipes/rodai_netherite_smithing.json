@@ -1,7 +1,7 @@
 {
   "type": "slashblade:slashblade_smithing",
   "addition": {
-    "tag": "forge:ingots/netherite"
+    "tag": "c:ingots/netherite"
   },
   "base": {
     "type": "slashblade:blade",

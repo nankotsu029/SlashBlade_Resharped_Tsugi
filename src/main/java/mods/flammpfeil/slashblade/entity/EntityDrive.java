@@ -1,10 +1,11 @@
 package mods.flammpfeil.slashblade.entity;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
+// TODO(neoforge-1.21.1): Rewrite this class to the NeoForge payload API; old Forge networking types remain.
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.ability.StunManager;
-import mods.flammpfeil.slashblade.capability.concentrationrank.ConcentrationRankCapabilityProvider;
+import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank;
 import mods.flammpfeil.slashblade.capability.concentrationrank.IConcentrationRank;
-import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.util.AttackManager;
 import mods.flammpfeil.slashblade.util.EnumSetConverter;
@@ -33,10 +34,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.entity.PartEntity;
-import net.minecraftforge.network.PlayMessages;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.entity.PartEntity;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -88,22 +88,22 @@ public class EntityDrive extends EntityAbstractSummonedSword {
         // this.setGlowing(true);
     }
 
-    public static EntityDrive createInstance(PlayMessages.SpawnEntity packet, Level worldIn) {
+    public static EntityDrive createInstance(Level worldIn) {
         return new EntityDrive(SlashBlade.RegistryEvents.Drive, worldIn);
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(COLOR, 0x3333FF);
-        this.entityData.define(FLAGS, 0);
-        this.entityData.define(RANK, 0.0f);
-        this.entityData.define(LIFETIME, 10.0f);
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(COLOR, 0x3333FF);
+        builder.define(FLAGS, 0);
+        builder.define(RANK, 0.0f);
+        builder.define(LIFETIME, 10.0f);
 
-        this.entityData.define(ROTATION_OFFSET, 0.0f);
-        this.entityData.define(ROTATION_ROLL, 0.0f);
-        this.entityData.define(BASESIZE, 1.0f);
-        this.entityData.define(SPEED, 0.5f);
+        builder.define(ROTATION_OFFSET, 0.0f);
+        builder.define(ROTATION_ROLL, 0.0f);
+        builder.define(BASESIZE, 1.0f);
+        builder.define(SPEED, 0.5f);
     }
 
     @Override
@@ -127,11 +127,6 @@ public class EntityDrive extends EntityAbstractSummonedSword {
                 .get("damage", ((Double v) -> this.damage = v), this.damage).get("crit", this::setIsCritical)
                 .get("clip", this::setNoClip).get("Lifetime", this::setLifetime)
                 .get("Knockback", this::setKnockBackOrdinal);
-    }
-
-    @Override
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return super.getAddEntityPacket();
     }
 
     @Override
@@ -294,7 +289,7 @@ public class EntityDrive extends EntityAbstractSummonedSword {
 
         int fireTime = targetEntity.getRemainingFireTicks();
         if (this.isOnFire() && !(targetEntity instanceof EnderMan)) {
-            targetEntity.setSecondsOnFire(5);
+            targetEntity.igniteForSeconds(5);
         }
 
         // todo: attack manager
@@ -304,12 +299,12 @@ public class EntityDrive extends EntityAbstractSummonedSword {
             //评分等级加成
             if (living instanceof Player player) {
                 IConcentrationRank.ConcentrationRanks rankBonus = player
-                        .getCapability(ConcentrationRankCapabilityProvider.RANK_POINT)
-                        .map(rp -> rp.getRank(player.getCommandSenderWorld().getGameTime()))
-                        .orElse(IConcentrationRank.ConcentrationRanks.NONE);
+                        .getData(CapabilityConcentrationRank.RANK_POINT)
+                        .getRank(player.getCommandSenderWorld().getGameTime());
                 float rankDamageBonus = rankBonus.level / 2.0f;
                 if (IConcentrationRank.ConcentrationRanks.S.level <= rankBonus.level) {
-                    int refine = player.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).map(ISlashBladeState::getRefine).orElse(0);
+                    var mainHandState = ItemSlashBlade.getBladeState(player.getMainHandItem());
+                    int refine = mainHandState != null ? mainHandState.getRefine() : 0;
                     int level = player.experienceLevel;
                     rankDamageBonus = (float) Math.max(rankDamageBonus, Math.min(level, refine) * REFINE_DAMAGE_MULTIPLIER.get());
                 }
@@ -331,8 +326,7 @@ public class EntityDrive extends EntityAbstractSummonedSword {
 
                 StunManager.setStun(targetLivingEntity);
                 if (!this.level().isClientSide() && shooter instanceof LivingEntity) {
-                    EnchantmentHelper.doPostHurtEffects(targetLivingEntity, shooter);
-                    EnchantmentHelper.doPostDamageEffects((LivingEntity) shooter, targetLivingEntity);
+                    // TODO(neoforge-1.21.1): Restore projectile enchantment post-hit hooks with the 1.21 combat API.
                 }
 
                 affectEntity(targetLivingEntity, getPotionEffects(), 1.0f);

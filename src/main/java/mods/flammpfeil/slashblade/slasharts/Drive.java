@@ -1,8 +1,7 @@
 package mods.flammpfeil.slashblade.slasharts;
 
 import mods.flammpfeil.slashblade.SlashBlade;
-import mods.flammpfeil.slashblade.capability.concentrationrank.ConcentrationRankCapabilityProvider;
-import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
+import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank;
 import mods.flammpfeil.slashblade.entity.EntityDrive;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.util.KnockBacks;
@@ -19,8 +18,8 @@ public class Drive {
     public static EntityDrive doSlash(LivingEntity playerIn, float roll, int lifetime, Vec3 centerOffset,
                                       boolean critical, double damage, KnockBacks knockback, float speed) {
 
-        int colorCode = playerIn.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                .map(ISlashBladeState::getColorCode).orElse(0xFF3333FF);
+        var bladeState = ItemSlashBlade.getBladeState(playerIn.getMainHandItem());
+        int colorCode = bladeState != null ? bladeState.getColorCode() : 0xFF3333FF;
 
         return doSlash(playerIn, roll, lifetime, colorCode, centerOffset, critical, damage, knockback, speed);
     }
@@ -64,8 +63,7 @@ public class Drive {
 
         drive.setLifetime(lifetime);
 
-        playerIn.getCapability(ConcentrationRankCapabilityProvider.RANK_POINT)
-                .ifPresent(rank -> drive.setRank(rank.getRankLevel(playerIn.level().getGameTime())));
+        drive.setRank(playerIn.getData(CapabilityConcentrationRank.RANK_POINT).getRankLevel(playerIn.level().getGameTime()));
 
         playerIn.level().addFreshEntity(drive);
 

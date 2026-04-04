@@ -1,67 +1,50 @@
 package mods.flammpfeil.slashblade.network;
 
+import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank;
 import mods.flammpfeil.slashblade.capability.concentrationrank.IConcentrationRank;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+public record RankSyncMessage(long rawPoint) implements CustomPacketPayload {
 
-public class RankSyncMessage {
-    public long rawPoint;
+    public static final CustomPacketPayload.Type<RankSyncMessage> TYPE =
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID, "rank_sync"));
 
-    public RankSyncMessage() {
-    }
+    public static final StreamCodec<RegistryFriendlyByteBuf, RankSyncMessage> STREAM_CODEC = StreamCodec.of(
+            (buf, msg) -> buf.writeLong(msg.rawPoint()),
+            buf -> new RankSyncMessage(buf.readLong())
+    );
 
-    static public RankSyncMessage decode(FriendlyByteBuf buf) {
-        RankSyncMessage msg = new RankSyncMessage();
-        msg.rawPoint = buf.readLong();
-        return msg;
-    }
-
-    static public void encode(RankSyncMessage msg, FriendlyByteBuf buf) {
-        buf.writeLong(msg.rawPoint);
-    }
-
-    static public void handle(RankSyncMessage msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().setPacketHandled(true);
-
-        if (ctx.get().getDirection() != NetworkDirection.PLAY_TO_CLIENT) {
-            return;
-        }
-
-        Consumer<Long> handler = DistExecutor.callWhenOn(Dist.CLIENT, () -> () -> RankSyncMessage::setPoint);
-
-        if (handler != null) {
-            ctx.get().enqueueWork(() -> handler.accept(msg.rawPoint));
-        }
-
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     @OnlyIn(Dist.CLIENT)
-    static public void setPoint(long point) {
+    public static void handle(RankSyncMessage msg, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> setPoint(msg.rawPoint()));
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    static void setPoint(long point) {
         Player pl = Minecraft.getInstance().player;
         if (pl != null) {
-            pl.getCapability(CapabilityConcentrationRank.RANK_POINT).ifPresent(cr -> {
-
-                long time = pl.level().getGameTime();
-
-                IConcentrationRank.ConcentrationRanks oldRank = cr.getRank(time);
-
-                cr.setRawRankPoint(point);
-                cr.setLastUpdte(time);
-
-                if (oldRank.level < cr.getRank(time).level) {
-                    cr.setLastRankRise(time);
-                }
-            });
+            var cr = pl.getData(CapabilityConcentrationRank.RANK_POINT);
+            long time = pl.level().getGameTime();
+            IConcentrationRank.ConcentrationRanks oldRank = cr.getRank(time);
+            cr.setRawRankPoint(point);
+            cr.setLastUpdte(time);
+            if (oldRank.level < cr.getRank(time).level) {
+                cr.setLastRankRise(time);
+            }
         }
     }
 }

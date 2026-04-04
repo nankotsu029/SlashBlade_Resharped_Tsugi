@@ -9,12 +9,12 @@ import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
 import mods.flammpfeil.slashblade.slasharts.SlashArts;
 import mods.flammpfeil.slashblade.util.AdvancementHelper;
+import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import mods.flammpfeil.slashblade.util.TimeValueHelper;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 import javax.annotation.Nonnull;
@@ -27,7 +27,7 @@ import java.util.function.Function;
 
 public class ComboState {
     public static final ResourceKey<Registry<ComboState>> REGISTRY_KEY = ResourceKey
-            .createRegistryKey(new ResourceLocation(SlashBlade.MODID, "combo_state"));
+            .createRegistryKey(ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID, "combo_state"));
 
     private final ResourceLocation motionLoc;
 
@@ -105,7 +105,7 @@ public class ComboState {
     }
 
     public static ResourceLocation getRegistryKey(ComboState state) {
-        return ComboStateRegistry.REGISTRY.get().getKey(state);
+        return ComboStateRegistry.REGISTRY.getKey(state);
     }
 
     private ComboState(Builder builder) {
@@ -146,7 +146,7 @@ public class ComboState {
 
     @Nonnull
     public ComboState checkTimeOut(LivingEntity living, float msec) {
-        return this.getTimeoutMS() < msec ? Objects.requireNonNull(ComboStateRegistry.REGISTRY.get().getValue(this.nextOfTimeout.apply(living)))
+        return this.getTimeoutMS() < msec ? Objects.requireNonNull(ComboStateRegistry.REGISTRY.get(this.nextOfTimeout.apply(living)))
                 : this;
     }
 
@@ -159,7 +159,7 @@ public class ComboState {
     }
 
     static public SlashArts.ArtsType releaseActionQuickCharge(LivingEntity user, Integer elapsed) {
-        int level = EnchantmentHelper.getEnchantmentLevel(Enchantments.SOUL_SPEED, user);
+        int level = EnchantmentCompat.getLevel(user, Enchantments.SOUL_SPEED);
         if (elapsed <= 3 + level) {
             AdvancementHelper.grantedIf(Enchantments.SOUL_SPEED, user);
             AdvancementHelper.grantCriterion(user, AdvancementHelper.ADVANCEMENT_QUICK_CHARGE);
@@ -191,8 +191,8 @@ public class ComboState {
             if (timeout <= elapsed) {
                 return next.apply(livingEntity);
             } else {
-                return livingEntity.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                        .map(ISlashBladeState::getComboSeq).orElse(SlashBlade.prefix("none"));
+                var state = ItemSlashBlade.getBladeState(livingEntity.getMainHandItem());
+                return state != null ? state.getComboSeq() : SlashBlade.prefix("none");
             }
         }
     }
@@ -247,8 +247,8 @@ public class ComboState {
     }
 
     public static long getElapsed(LivingEntity livingEntity) {
-        return livingEntity.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                .map((state) -> state.getElapsedTime(livingEntity)).orElse(0L);
+        var bs = ItemSlashBlade.getBladeState(livingEntity.getMainHandItem());
+        return bs != null ? bs.getElapsedTime(livingEntity) : 0L;
     }
 
     public static class Builder {

@@ -17,7 +17,7 @@
       "item": "slashblade:proudsoul_crystal"
     },
     "S": {
-      "tag": "forge:string"
+      "tag": "c:string"
     },
     "W": {
       "item": "minecraft:wooden_sword"

@@ -1,12 +1,29 @@
 package mods.flammpfeil.slashblade.capability.mobeffect;
 
 import com.google.common.collect.Sets;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.Holder;
 import net.minecraft.world.effect.MobEffect;
 
 import java.util.Optional;
 import java.util.Set;
 
 public class MobEffectState implements IMobEffectState {
+
+    /**
+     * Codec for AttachmentType serialization.
+     * Only stunTimeout is persisted; all other state is transient (runtime-only).
+     */
+    public static final Codec<MobEffectState> CODEC = RecordCodecBuilder.create(instance ->
+            instance.group(
+                    Codec.LONG.optionalFieldOf("stunTimeout", -1L).forGetter(s -> s.stunTimeout)
+            ).apply(instance, stunTimeout -> {
+                MobEffectState s = new MobEffectState();
+                s.stunTimeout = stunTimeout;
+                return s;
+            })
+    );
 
     long stunTimeout = -1;
 
@@ -34,7 +51,7 @@ public class MobEffectState implements IMobEffectState {
 
     Optional<Long> UntouchableTimeout = Optional.empty();
     int untouchableLimit = 200;
-    Set<MobEffect> effectSet = Sets.newHashSet();
+    Set<Holder<MobEffect>> effectSet = Sets.newHashSet();
     float storedHealth;
     boolean hasWorked;
 
@@ -59,7 +76,7 @@ public class MobEffectState implements IMobEffectState {
     }
 
     @Override
-    public Set<MobEffect> getEffectSet() {
+    public Set<Holder<MobEffect>> getEffectSet() {
         return effectSet;
     }
 

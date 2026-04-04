@@ -1,5 +1,6 @@
 package mods.flammpfeil.slashblade.capability.mobeffect;
 
+import net.minecraft.core.Holder;
 import net.minecraft.world.effect.MobEffect;
 
 import java.util.Collection;
@@ -97,9 +98,9 @@ public interface IMobEffectState {
         });
     }
 
-    Set<MobEffect> getEffectSet();
+    Set<Holder<MobEffect>> getEffectSet();
 
-    default void storeEffects(Collection<MobEffect> effects) {
+    default void storeEffects(Collection<Holder<MobEffect>> effects) {
         this.getEffectSet().clear();
         this.getEffectSet().addAll(effects);
     }

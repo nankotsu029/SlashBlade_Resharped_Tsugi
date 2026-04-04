@@ -1,6 +1,7 @@
 package jp.nyatla.nymmd;
 
 import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -139,12 +140,11 @@ public class MmdMotionPlayerGL2 extends MmdMotionPlayer {
         // とりあえずbufferに変換しよう
         // とりあえず転写用
 
-        BufferBuilder wr = Tesselator.getInstance().getBuilder();
         int number_of_vertex = this._ref_pmd_model.getNumberOfVertex();
 
         // 頂点座標、法線、テクスチャ座標の各配列をセット
         for (int i = this._materials.length - 1; i >= 0; i--) {
-            wr.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+            BufferBuilder wr = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 
             final Material mt_ptr = this._materials[i];
 
@@ -153,9 +153,10 @@ public class MmdMotionPlayerGL2 extends MmdMotionPlayer {
                 // wr.setNormal(_fbuf[npos++], _fbuf[npos++], _fbuf[npos++]);
                 int vpos = pos * 3;
                 // wr.addVertexWithUV(_fbuf[vpos++],_fbuf[vpos++],_fbuf[vpos++],this._tex_array[pos].u,this._tex_array[pos].v);
-                wr.vertex(_fbuf[vpos++], _fbuf[vpos++], -_fbuf[vpos++])
-                        .uv(this._tex_array[pos].u, this._tex_array[pos].v)
-                        .normal(_fbuf[npos++], _fbuf[npos++], _fbuf[npos++]).color(1, 1, 1, 1).endVertex();
+                wr.addVertex(_fbuf[vpos++], _fbuf[vpos++], -_fbuf[vpos++])
+                        .setUv(this._tex_array[pos].u, this._tex_array[pos].v)
+                        .setNormal(_fbuf[npos++], _fbuf[npos++], _fbuf[npos++])
+                        .setColor(255, 255, 255, 255);
             }
 
             // マテリアル設定
@@ -201,7 +202,7 @@ public class MmdMotionPlayerGL2 extends MmdMotionPlayer {
             // 頂点インデックスを指定してポリゴン描画
             // GL11.glDrawElements(GL11.GL_TRIANGLES, mt_ptr.indices);
 
-            Tesselator.getInstance().end();
+            BufferUploader.drawWithShader(wr.buildOrThrow());
         }
 
         GL11.glPopClientAttrib();

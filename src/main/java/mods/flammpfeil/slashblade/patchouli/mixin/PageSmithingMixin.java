@@ -4,12 +4,13 @@ import mods.flammpfeil.slashblade.recipe.SlashBladeSmithingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.SmithingRecipe;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import vazkii.patchouli.client.book.page.PageSmithing;
 
-@Mixin(PageSmithing.class)
+@Pseudo
+@Mixin(targets = "vazkii.patchouli.client.book.page.PageSmithing", remap = false)
 public class PageSmithingMixin {
     @Inject(method = "getBase", at = @At("RETURN"), cancellable = true, remap = false)
     private void getBaseMixin(SmithingRecipe recipe, CallbackInfoReturnable<Ingredient> cir) {

@@ -11,11 +11,11 @@ import mods.flammpfeil.slashblade.util.AdvancementHelper;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.AnvilUpdateEvent;
-import net.minecraftforge.event.entity.player.AnvilRepairEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.AnvilUpdateEvent;
+import net.neoforged.neoforge.event.entity.player.AnvilRepairEvent;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -32,7 +32,7 @@ public class RefineHandler {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
     @SubscribeEvent(priority = EventPriority.LOW)
@@ -47,7 +47,7 @@ public class RefineHandler {
         if (base.isEmpty()) {
             return;
         }
-        if (!(base.getCapability(ItemSlashBlade.BLADESTATE).isPresent())) {
+        if (ItemSlashBlade.getBladeState(base) == null) {
             return;
         }
 
@@ -74,15 +74,18 @@ public class RefineHandler {
         int levelCostBase = SlashBladeConfig.REFINE_LEVEL_COST.get();
         int costResult = 0;
         AtomicInteger refineResult = new AtomicInteger(0);
-        result.getCapability(ItemSlashBlade.BLADESTATE).ifPresent(s -> refineResult.set(s.getRefine()));
+        var resultStateInit = ItemSlashBlade.getBladeState(result);
+        if (resultStateInit != null) refineResult.set(resultStateInit.getRefine());
 
         while (materialCost < material.getCount()) {
 
+            var resultStateLoop = ItemSlashBlade.getBladeState(result);
+            if (resultStateLoop == null) break;
             RefineProgressEvent e = new RefineProgressEvent(result,
-                    result.getCapability(ItemSlashBlade.BLADESTATE).orElse(new SlashBladeState(result)), materialCost + 1, levelCostBase,
+                    resultStateLoop, materialCost + 1, levelCostBase,
                     costResult, refineResult.get(), event);
 
-            MinecraftForge.EVENT_BUS.post(e);
+            NeoForge.EVENT_BUS.post(e);
             if (e.isCanceled()) {
                 break;
             }
@@ -97,12 +100,12 @@ public class RefineHandler {
             }
         }
 
-        if (result.getCapability(ItemSlashBlade.BLADESTATE).isPresent()) {
-            ISlashBladeState state = result.getCapability(ItemSlashBlade.BLADESTATE).resolve().orElse(new SlashBladeState(result));
+        var state = ItemSlashBlade.getBladeState(result);
+        if (state != null) {
             RefineSettlementEvent e2 = new RefineSettlementEvent(result,
                     state, materialCost, costResult, refineResult.get(), event);
 
-            MinecraftForge.EVENT_BUS.post(e2);
+            NeoForge.EVENT_BUS.post(e2);
             if (e2.isCanceled()) {
                 return;
             }
@@ -123,7 +126,7 @@ public class RefineHandler {
             }
 
             result.setDamageValue(result.getDamageValue() - Math.max(result.getDamageValue(), materialCost * Math.max(1, level / 2)));
-            result.getOrCreateTag().put("bladeState", state.serializeNBT());
+            ItemSlashBlade.setBladeState(result, state);
 
 
         }
@@ -138,7 +141,7 @@ public class RefineHandler {
                 * Math.min(5000, level * 10);
     }
 
-    private static final ResourceLocation REFINE = new ResourceLocation(SlashBlade.MODID, "tips/refine");
+    private static final ResourceLocation REFINE = ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID, "tips/refine");
 
     @SubscribeEvent
     public void onAnvilRepairEvent(AnvilRepairEvent event) {
@@ -167,8 +170,10 @@ public class RefineHandler {
             return;
         }
 
-        int before = base.getCapability(ItemSlashBlade.BLADESTATE).map(ISlashBladeState::getRefine).orElse(0);
-        int after = output.getCapability(ItemSlashBlade.BLADESTATE).map(ISlashBladeState::getRefine).orElse(0);
+        var baseState = ItemSlashBlade.getBladeState(base);
+        int before = baseState != null ? baseState.getRefine() : 0;
+        var outputState = ItemSlashBlade.getBladeState(output);
+        int after = outputState != null ? outputState.getRefine() : 0;
 
         if (before < after) {
             AdvancementHelper.grantCriterion((ServerPlayer) event.getEntity(), REFINE);

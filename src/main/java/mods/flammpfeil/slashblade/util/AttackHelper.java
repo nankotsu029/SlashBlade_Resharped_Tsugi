@@ -1,6 +1,7 @@
 package mods.flammpfeil.slashblade.util;
 
-import mods.flammpfeil.slashblade.capability.concentrationrank.ConcentrationRankCapabilityProvider;
+// TODO(neoforge-1.21.1): Rework mob-type and enchantment bonus damage logic for the 1.21.1 combat API.
+import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank;
 import mods.flammpfeil.slashblade.capability.concentrationrank.IConcentrationRank;
 import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
@@ -16,17 +17,17 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.ForgeHooks;
-import net.minecraftforge.entity.PartEntity;
-import net.minecraftforge.event.ForgeEventFactory;
-import net.minecraftforge.event.entity.player.CriticalHitEvent;
+import net.neoforged.neoforge.common.CommonHooks;
+import net.neoforged.neoforge.entity.PartEntity;
+import net.neoforged.neoforge.event.EventHooks;
+import net.neoforged.neoforge.event.entity.player.CriticalHitEvent;
 
 import static mods.flammpfeil.slashblade.SlashBladeConfig.REFINE_DAMAGE_MULTIPLIER;
 import static mods.flammpfeil.slashblade.SlashBladeConfig.SLASHBLADE_DAMAGE_MULTIPLIER;
@@ -35,7 +36,7 @@ import static mods.flammpfeil.slashblade.util.AttackManager.getSlashBladeDamageS
 public class AttackHelper {
     public static void attack(LivingEntity attacker, Entity target, float comboRatio) {
         // 触发Forge事件，以兼容其他模组
-        if (attacker instanceof Player player && !ForgeHooks.onPlayerAttackTarget(player, target)) {
+        if (attacker instanceof Player player && !CommonHooks.onPlayerAttackTarget(player, target)) {
             return;
         }
         // 判断攻击目标是否可以被攻击
@@ -69,7 +70,7 @@ public class AttackHelper {
             applyKnockback(attacker, target, knockback);
             restoreTargetMotionIfNeeded(target, originalMotion);
             playAttackEffects(attacker, target, isCritical);
-            handleEnchantmentsAndDurability(attacker, target);
+            handleEnchantmentsAndDurability(attacker, target, damageSource);
             handlePostAttackEffects(attacker, target, fireAspectResult);
         } else {
             handleFailedAttack(attacker, target, fireAspectResult);
@@ -88,10 +89,10 @@ public class AttackHelper {
         baseDamage *= comboRatio * getSlashBladeDamageScale(attacker) * SLASHBLADE_DAMAGE_MULTIPLIER.get();
 
         if (attacker instanceof Player player) {
-            CriticalHitEvent hitResult = ForgeHooks.getCriticalHit(player, target, isCritical, isCritical ? 1.5F : 1.0F);
-            isCritical = hitResult != null;
+            CriticalHitEvent hitResult = CommonHooks.fireCriticalHit(player, target, isCritical, isCritical ? 1.5F : 1.0F);
+            isCritical = hitResult.isCriticalHit();
             if (isCritical) {
-                baseDamage *= hitResult.getDamageModifier();
+                baseDamage *= hitResult.getDamageMultiplier();
             }
         }
         return baseDamage;
@@ -101,7 +102,8 @@ public class AttackHelper {
      * 横扫之刃附魔加成(三级加成3.25攻击力)
      */
     public static float getSweepingBonus(LivingEntity attacker) {
-        return 10 * (EnchantmentHelper.getSweepingDamageRatio(attacker) * 0.5f);
+        int sweepingLevel = EnchantmentCompat.getLevel(attacker, Enchantments.SWEEPING_EDGE);
+        return sweepingLevel > 0 ? sweepingLevel + 0.25F : 0.0F;
     }
 
     /**
@@ -109,12 +111,12 @@ public class AttackHelper {
      */
     public static float getRankBonus(LivingEntity attacker) {
         IConcentrationRank.ConcentrationRanks rankBonus = attacker
-                .getCapability(ConcentrationRankCapabilityProvider.RANK_POINT)
-                .map(rp -> rp.getRank(attacker.getCommandSenderWorld().getGameTime()))
-                .orElse(IConcentrationRank.ConcentrationRanks.NONE);
+                .getData(CapabilityConcentrationRank.RANK_POINT)
+                .getRank(attacker.getCommandSenderWorld().getGameTime());
         double rankDamageBonus = rankBonus.level / 2.0;
         if (IConcentrationRank.ConcentrationRanks.S.level <= rankBonus.level) {
-            int refine = attacker.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).map(ISlashBladeState::getRefine).orElse(0);
+            var bladeState = ItemSlashBlade.getBladeState(attacker.getMainHandItem());
+            int refine = bladeState != null ? bladeState.getRefine() : 0;
             int level = 0;
             if (attacker instanceof Player player) {
                 level = player.experienceLevel;
@@ -128,11 +130,8 @@ public class AttackHelper {
      * 杀手类附魔加成(杀死类附魔攻击对应的生物加成2.5 * 附魔等级)
      */
     public static float getEnchantmentBonus(LivingEntity attacker, Entity target) {
-        if (target instanceof LivingEntity living) {
-            return EnchantmentHelper.getDamageBonus(attacker.getMainHandItem(), living.getMobType());
-        } else {
-            return EnchantmentHelper.getDamageBonus(attacker.getMainHandItem(), MobType.UNDEFINED);
-        }
+        // TODO(neoforge-1.21.1): Rebuild enchantment bonus damage with the holder-based 1.21 combat API.
+        return 0.0F;
     }
 
     /**
@@ -140,7 +139,7 @@ public class AttackHelper {
      */
     public static float calculateKnockback(LivingEntity attacker) {
         float knockback = (float) attacker.getAttributeValue(Attributes.ATTACK_KNOCKBACK);
-        knockback += EnchantmentHelper.getKnockbackBonus(attacker);
+        knockback += EnchantmentCompat.getLevel(attacker, Enchantments.KNOCKBACK);
         if (attacker.isSprinting()) {
             attacker.level().playSound(null, attacker.getX(), attacker.getY(), attacker.getZ(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, attacker.getSoundSource(), 1.0F, 1.0F);
             ++knockback;
@@ -176,12 +175,12 @@ public class AttackHelper {
     public static FireAspectResult handleFireAspect(LivingEntity attacker, Entity target) {
         float preAttackHealth = 0.0F;
         boolean shouldSetFire = false;
-        int fireAspectLevel = EnchantmentHelper.getFireAspect(attacker);
+        int fireAspectLevel = EnchantmentCompat.getLevel(attacker, Enchantments.FIRE_ASPECT);
         if (target instanceof LivingEntity living) {
             preAttackHealth = living.getHealth();
             if (fireAspectLevel > 0 && !target.isOnFire()) {
                 shouldSetFire = true;
-                target.setSecondsOnFire(1);
+                target.igniteForSeconds(1.0F);
             }
         }
         return new FireAspectResult(preAttackHealth, shouldSetFire, fireAspectLevel);
@@ -226,12 +225,11 @@ public class AttackHelper {
     /**
      * 处理附魔后置效果与耐久
      */
-    public static void handleEnchantmentsAndDurability(LivingEntity attacker, Entity target) {
+    public static void handleEnchantmentsAndDurability(LivingEntity attacker, Entity target, DamageSource damageSource) {
         attacker.setLastHurtMob(target);
-        if (target instanceof LivingEntity living) {
-            EnchantmentHelper.doPostHurtEffects(living, attacker);
+        if (attacker.level() instanceof ServerLevel serverLevel) {
+            EnchantmentHelper.doPostAttackEffects(serverLevel, target, damageSource);
         }
-        EnchantmentHelper.doPostDamageEffects(attacker, target);
 
         ItemStack itemStack = attacker.getMainHandItem();
         Entity entity = target;
@@ -247,7 +245,7 @@ public class AttackHelper {
             }
             if (itemStack.isEmpty()) {
                 if (attacker instanceof Player player) {
-                    ForgeEventFactory.onPlayerDestroyItem(player, copy, InteractionHand.MAIN_HAND);
+                    EventHooks.onPlayerDestroyItem(player, copy, InteractionHand.MAIN_HAND);
                 }
                 attacker.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             }
@@ -266,7 +264,7 @@ public class AttackHelper {
             }
             //应用完整的火焰附加效果(每级4秒)
             if (fireAspectResult.fireAspectLevel > 0) {
-                target.setSecondsOnFire(fireAspectResult.fireAspectLevel * 4);
+                target.igniteForSeconds(fireAspectResult.fireAspectLevel * 4.0F);
             }
             // 伤害粒子
             if (attacker.level() instanceof ServerLevel && damageDealt > 2.0F) {

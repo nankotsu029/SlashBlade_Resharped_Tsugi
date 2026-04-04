@@ -49,8 +49,8 @@ public class ArrowReflector {
                     break;
                 }
 
-                Entity target = stack.getCapability(ItemSlashBlade.BLADESTATE)
-                        .map(s -> Objects.requireNonNull(s.getTargetEntity(attacker.level()))).orElse(null);
+                var bladeState = ItemSlashBlade.getBladeState(stack);
+                Entity target = bladeState != null ? bladeState.getTargetEntity(attacker.level()) : null;
                 if (target != null) {
                     dir = arrow.position().subtract(target.getEyePosition(1.0f)).normalize();
                 } else {
@@ -80,38 +80,36 @@ public class ArrowReflector {
             return;
         }
 
-        stack.getCapability(ItemSlashBlade.BLADESTATE).ifPresent(s -> {
+        var s = ItemSlashBlade.getBladeState(stack);
+        if (s != null) {
             int ticks = attacker.getTicksUsingItem();
 
-            if (ticks == 0) {
-                return;
-            }
+            if (ticks != 0) {
+                ResourceLocation old = s.getComboSeq();
+                ResourceLocation current = s.resolvCurrentComboState(attacker);
+                ComboState currentCS = ComboStateRegistry.REGISTRY.get(current) != null
+                        ? ComboStateRegistry.REGISTRY.get(current)
+                        : ComboStateRegistry.NONE.get();
+                if (old != current) {
+                    ComboState oldCS = ComboStateRegistry.REGISTRY.get(current);
+                    if (oldCS != null) {
+                        ticks -= (int) TimeValueHelper.getTicksFromMSec(oldCS.getTimeoutMS());
+                    }
+                }
 
-            ResourceLocation old = s.getComboSeq();
-            ResourceLocation current = s.resolvCurrentComboState(attacker);
-            ComboState currentCS = ComboStateRegistry.REGISTRY.get().getValue(current) != null
-                    ? ComboStateRegistry.REGISTRY.get().getValue(current)
-                    : ComboStateRegistry.NONE.get();
-            if (old != current) {
-                ComboState oldCS = ComboStateRegistry.REGISTRY.get().getValue(current);
-                if (oldCS != null) {
-                    ticks -= (int) TimeValueHelper.getTicksFromMSec(oldCS.getTimeoutMS());
+                double period = 0;
+                if (currentCS != null) {
+                    period = TimeValueHelper.getTicksFromFrames(currentCS.getEndFrame() - currentCS.getStartFrame())
+                            * (1.0f / currentCS.getSpeed());
+                }
+
+                if (ticks < period) {
+                    List<Entity> founds = TargetSelector.getReflectableEntitiesWithinAABB(attacker);
+                    founds.stream().filter(e -> (e instanceof Projectile) && ((Projectile) e).getOwner() != attacker)
+                            .forEach(e -> doReflect(e, attacker));
                 }
             }
-
-            double period = 0;
-            if (currentCS != null) {
-                period = TimeValueHelper.getTicksFromFrames(currentCS.getEndFrame() - currentCS.getStartFrame())
-                        * (1.0f / currentCS.getSpeed());
-            }
-
-            if (ticks < period) {
-                List<Entity> founds = TargetSelector.getReflectableEntitiesWithinAABB(attacker);
-
-                founds.stream().filter(e -> (e instanceof Projectile) && ((Projectile) e).getOwner() != attacker)
-                        .forEach(e -> doReflect(e, attacker));
-            }
-        });
+        }
 
     }
 

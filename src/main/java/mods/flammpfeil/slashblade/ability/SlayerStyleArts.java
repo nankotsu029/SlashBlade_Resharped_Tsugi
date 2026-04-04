@@ -1,8 +1,10 @@
 package mods.flammpfeil.slashblade.ability;
 
+// TODO(neoforge-1.21.1): Replace Forge TickEvent usages with the split NeoForge tick events.
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.capability.mobeffect.CapabilityMobEffect;
 import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
+import mods.flammpfeil.slashblade.capability.slashblade.SlashBladeState;
 import mods.flammpfeil.slashblade.entity.EntityAbstractSummonedSword;
 import mods.flammpfeil.slashblade.event.handler.InputCommandEvent;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
@@ -20,6 +22,9 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
@@ -27,9 +32,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.bus.api.SubscribeEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
@@ -51,7 +56,7 @@ public class SlayerStyleArts {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
 
@@ -88,6 +93,7 @@ public class SlayerStyleArts {
     public static final String STORE_STEPUP_PATH = "sb.store.stepup";
     public static final String TMP_STEPUP_PATH = "sb.tmp.stepup";
     public static final String DO_FORCE_HIT_PATH = "doForceHit";
+    private static final ResourceLocation STEP_HEIGHT_BOOST_ID = SlashBlade.prefix("step_height_boost");
 
     public final static int TRICK_ACTION_UNTOUCHABLE_TIME = 10;
 
@@ -136,20 +142,19 @@ public class SlayerStyleArts {
     }
 
     public boolean handleForwardSprintSneak(ServerPlayer sender, Level worldIn) {
-        return sender.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).map(state -> {
-            Entity tmpTarget = state.getTargetEntity(worldIn);
-            Entity target = (tmpTarget != null && tmpTarget.getParts() != null && tmpTarget.getParts().length > 0)
-                    ? tmpTarget.getParts()[0] : tmpTarget;
+        SlashBladeState state = ItemSlashBlade.getBladeState(sender.getMainHandItem());
+        if (state == null) return false;
+        Entity tmpTarget = state.getTargetEntity(worldIn);
+        Entity target = (tmpTarget != null && tmpTarget.getParts() != null && tmpTarget.getParts().length > 0)
+                ? tmpTarget.getParts()[0] : tmpTarget;
 
-            if (target == null
-                    && sender.getPersistentData().getInt(AVOID_TRICKUP_PATH) == 0) {
-                return executeTrickUp(sender);
-            } else if (target != null) {
-                return executeAirTrick(sender, worldIn, target, state);
-            }
+        if (target == null && sender.getPersistentData().getInt(AVOID_TRICKUP_PATH) == 0) {
+            return executeTrickUp(sender);
+        } else if (target != null) {
+            return executeAirTrick(sender, worldIn, target, state);
+        }
 
-            return false;
-        }).orElse(false);
+        return false;
     }
 
     public boolean handleBackSprintSneak(ServerPlayer sender) {
@@ -169,9 +174,7 @@ public class SlayerStyleArts {
 
     public boolean handleSprintMove(ServerPlayer sender, EnumSet<InputCommand> current) {
         ServerLevel level = sender.serverLevel();
-        int count = sender.getCapability(CapabilityMobEffect.MOB_EFFECT)
-                .map(effect -> effect.doAvoid(level.getGameTime()))
-                .orElse(0);
+        int count = sender.getData(CapabilityMobEffect.MOB_EFFECT).doAvoid(level.getGameTime());
 
         if (count > 0) {
             applyBasicTrickEffects(sender);
@@ -187,8 +190,8 @@ public class SlayerStyleArts {
             applyTrickMotionAndData(sender, motion, AVOID_COUNTER_PATH, sender.position());
             AdvancementHelper.grantCriterion(sender, ADVANCEMENT_TRICK_DODGE);
 
-            sender.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                    .ifPresent(state -> state.updateComboSeq(sender, state.getComboRoot()));
+            var bladeState = ItemSlashBlade.getBladeState(sender.getMainHandItem());
+            if (bladeState != null) bladeState.updateComboSeq(sender, bladeState.getComboRoot());
 
         }
 
@@ -215,8 +218,6 @@ public class SlayerStyleArts {
 
     public void applyBasicTrickEffects(ServerPlayer sender) {
         Untouchable.setUntouchable(sender, TRICK_ACTION_UNTOUCHABLE_TIME);
-        sender.isChangingDimension = true;
-
     }
 
     public void applyTrickMotionAndData(ServerPlayer sender, Vec3 motion, String counterPath, Vec3 position) {
@@ -345,8 +346,8 @@ public class SlayerStyleArts {
     public static void prepareTeleportEffects(Entity entityIn) {
         if (entityIn instanceof ServerPlayer serverPlayer) {
             serverPlayer.playNotifySound(SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.75F, 1.25F);
-            serverPlayer.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                    .ifPresent(state -> state.updateComboSeq(serverPlayer, state.getComboRoot()));
+            var bladeState = ItemSlashBlade.getBladeState(serverPlayer.getMainHandItem());
+            if (bladeState != null) bladeState.updateComboSeq(serverPlayer, bladeState.getComboRoot());
             Untouchable.setUntouchable(serverPlayer, TRICK_ACTION_UNTOUCHABLE_TIME);
         }
     }
@@ -491,31 +492,42 @@ public class SlayerStyleArts {
     static final float stepUpDefault = 0.6f;
 
     @SubscribeEvent
-    public void onTick(TickEvent.PlayerTickEvent event) {
-        switch (event.phase) {
-            case START -> handleTickStart(event);
-            case END -> handleTickEnd(event);
-
-        }
+    public void onTickPre(PlayerTickEvent.Pre event) {
+        handleTickStart(event);
     }
 
-    public void handleTickStart(TickEvent.PlayerTickEvent event) {
-        handleStepUpBoost(event.player);
-        handleTrickUpCooldown(event.player);
-        handleAvoidCounter(event.player);
-        handleAirTrickCounter(event.player);
+    @SubscribeEvent
+    public void onTickPost(PlayerTickEvent.Post event) {
+        handleTickEnd(event);
+    }
+
+    public void handleTickStart(PlayerTickEvent.Pre event) {
+        handleStepUpBoost(event.getEntity());
+        handleTrickUpCooldown(event.getEntity());
+        handleAvoidCounter(event.getEntity());
+        handleAirTrickCounter(event.getEntity());
 
     }
 
     public void handleStepUpBoost(Player player) {
-        float stepUp = player.maxUpStep();
         boolean doStepupBoost = shouldApplyStepUpBoost(player);
+        AttributeInstance stepHeight = player.getAttribute(Attributes.STEP_HEIGHT);
+
+        if (stepHeight == null) {
+            return;
+        }
 
         if (doStepupBoost && (player.getMainHandItem().getItem() instanceof ItemSlashBlade)
-                && stepUp < stepUpBoost) {
-            player.getPersistentData().putFloat(STORE_STEPUP_PATH, stepUp);
-            player.setMaxUpStep(stepUpBoost);
-
+                && player.maxUpStep() < stepUpBoost) {
+            if (stepHeight.getModifier(STEP_HEIGHT_BOOST_ID) == null) {
+                stepHeight.addTransientModifier(new AttributeModifier(
+                        STEP_HEIGHT_BOOST_ID,
+                        stepUpBoost - stepUpDefault,
+                        AttributeModifier.Operation.ADD_VALUE
+                ));
+            }
+        } else if (stepHeight.getModifier(STEP_HEIGHT_BOOST_ID) != null) {
+            stepHeight.removeModifier(STEP_HEIGHT_BOOST_ID);
         }
     }
 
@@ -644,13 +656,10 @@ public class SlayerStyleArts {
         }
     }
 
-    public void handleTickEnd(TickEvent.PlayerTickEvent event) {
-        float stepUp = event.player.getPersistentData().getFloat(TMP_STEPUP_PATH);
-        stepUp = Math.max(stepUp, stepUpDefault);
-
-        if (stepUp < event.player.maxUpStep()) {
-            event.player.setMaxUpStep(stepUp);
-
+    public void handleTickEnd(PlayerTickEvent.Post event) {
+        AttributeInstance stepHeight = event.getEntity().getAttribute(Attributes.STEP_HEIGHT);
+        if (stepHeight != null && stepHeight.getModifier(STEP_HEIGHT_BOOST_ID) != null) {
+            stepHeight.removeModifier(STEP_HEIGHT_BOOST_ID);
         }
     }
 

@@ -4,38 +4,37 @@ import mods.flammpfeil.slashblade.SlashBladeConfig;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.registry.SlashBladeItems;
 import mods.flammpfeil.slashblade.registry.slashblade.SlashBladeDefinition;
-import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 
 public class SlashBladeShapedRecipe extends ShapedRecipe {
-
     public static final RecipeSerializer<SlashBladeShapedRecipe> SERIALIZER = new SlashBladeShapedRecipeSerializer<>(
             RecipeSerializer.SHAPED_RECIPE, SlashBladeShapedRecipe::new);
 
     private final ResourceLocation outputBlade;
 
     public SlashBladeShapedRecipe(ShapedRecipe compose, ResourceLocation outputBlade) {
-        super(compose.getId(), compose.getGroup(), compose.category(), compose.getWidth(), compose.getHeight(),
-                compose.getIngredients(), getResultBlade(outputBlade));
+        super(compose.getGroup(), compose.category(), compose.pattern, getResultBlade(outputBlade), compose.showNotification());
         this.outputBlade = outputBlade;
     }
 
     private static ItemStack getResultBlade(ResourceLocation outputBlade) {
-        Item bladeItem = ForgeRegistries.ITEMS.containsKey(outputBlade) ? ForgeRegistries.ITEMS.getValue(outputBlade)
-                : SlashBladeItems.SLASHBLADE.get();
-
+        Item bladeItem = BuiltInRegistries.ITEM.getOptional(outputBlade).orElse(SlashBladeItems.SLASHBLADE.get());
         return Objects.requireNonNullElseGet(bladeItem, SlashBladeItems.SLASHBLADE).getDefaultInstance();
     }
 
@@ -48,83 +47,82 @@ public class SlashBladeShapedRecipe extends ShapedRecipe {
     }
 
     @Override
-    public @NotNull ItemStack getResultItem(@NotNull RegistryAccess access) {
-        ItemStack result = SlashBladeShapedRecipe.getResultBlade(this.getOutputBlade());
+    public @NotNull ItemStack getResultItem(@NotNull HolderLookup.Provider access) {
+        ItemStack result = getResultBlade(this.outputBlade);
 
-        if (!Objects.equals(ForgeRegistries.ITEMS.getKey(result.getItem()), getOutputBlade())) {
-            result = access.registryOrThrow(SlashBladeDefinition.REGISTRY_KEY).getOrThrow(getOutputBladeKey())
-                    .getBlade();
+        if (!Objects.equals(BuiltInRegistries.ITEM.getKey(result.getItem()), this.outputBlade)) {
+            result = access.lookupOrThrow(SlashBladeDefinition.REGISTRY_KEY).getOrThrow(getOutputBladeKey()).value().getBlade();
         }
 
         return result;
     }
 
     @Override
-    public @NotNull ItemStack assemble(@NotNull CraftingContainer container, @NotNull RegistryAccess access) {
-        var result = this.getResultItem(access);
+    public @NotNull ItemStack assemble(@NotNull CraftingInput input, @NotNull HolderLookup.Provider access) {
+        ItemStack result = this.getResultItem(access);
         if (!(result.getItem() instanceof ItemSlashBlade)) {
             result = new ItemStack(SlashBladeItems.SLASHBLADE.get());
         }
 
-        var resultState = result.getCapability(ItemSlashBlade.BLADESTATE).orElseThrow(NullPointerException::new);
+        var resultState = ItemSlashBlade.getOrCreateBladeState(result);
         boolean sumRefine = SlashBladeConfig.DO_CRAFTING_SUM_REFINE.get();
         int proudSoul = resultState.getProudSoulCount();
         int killCount = resultState.getKillCount();
         int refine = resultState.getRefine();
-        for (var stack : container.getItems()) {
+
+        for (var stack : input.items()) {
             if (!(stack.getItem() instanceof ItemSlashBlade)) {
                 continue;
             }
-            var ingredientState = stack.getCapability(ItemSlashBlade.BLADESTATE).orElseThrow(NullPointerException::new);
+            var ingredientState = ItemSlashBlade.getBladeState(stack);
+            if (ingredientState == null) {
+                continue;
+            }
 
             proudSoul += ingredientState.getProudSoulCount();
             killCount += ingredientState.getKillCount();
-            if (sumRefine) {
-                refine += ingredientState.getRefine();
-            } else {
-                refine = Math.max(refine, ingredientState.getRefine());
-            }
-            updateEnchantment(result, stack);
+            refine = sumRefine ? refine + ingredientState.getRefine() : Math.max(refine, ingredientState.getRefine());
+            updateEnchantment(result, stack, access);
         }
+
         resultState.setProudSoulCount(proudSoul);
         resultState.setKillCount(killCount);
         resultState.setRefine(refine);
-        result.getOrCreateTag().put("bladeState", resultState.serializeNBT());
+        ItemSlashBlade.setBladeState(result, resultState);
 
         return result;
     }
 
-    private void updateEnchantment(ItemStack result, ItemStack ingredient) {
-        var newItemEnchants = result.getAllEnchantments();
-        var oldItemEnchants = ingredient.getAllEnchantments();
-        for (Enchantment enchantIndex : oldItemEnchants.keySet()) {
+    private static void updateEnchantment(ItemStack result, ItemStack ingredient, HolderLookup.Provider access) {
+        var lookup = access.lookupOrThrow(Registries.ENCHANTMENT);
+        ItemEnchantments.Mutable merged = new ItemEnchantments.Mutable(EnchantmentHelper.getEnchantmentsForCrafting(result));
+        var source = ingredient.getAllEnchantments(lookup);
 
-            int destLevel = newItemEnchants.getOrDefault(enchantIndex, 0);
-            int srcLevel = oldItemEnchants.get(enchantIndex);
+        for (var entry : source.entrySet()) {
+            Holder<Enchantment> enchantment = entry.getKey();
+            int mergedLevel = Math.max(entry.getIntValue(), merged.getLevel(enchantment));
+            mergedLevel = Math.min(mergedLevel, enchantment.value().getMaxLevel());
 
-            srcLevel = Math.max(srcLevel, destLevel);
-            srcLevel = Math.min(srcLevel, enchantIndex.getMaxLevel());
-
-            boolean canApplyFlag = enchantIndex.canApplyAtEnchantingTable(result);
-            if (canApplyFlag) {
-                for (Enchantment curEnchantIndex : newItemEnchants.keySet()) {
-                    if (curEnchantIndex != enchantIndex
-                            && !enchantIndex.isCompatibleWith(curEnchantIndex) /* canApplyTogether */) {
-                        canApplyFlag = false;
+            boolean canApply = enchantment.value().canEnchant(result);
+            if (canApply) {
+                for (Holder<Enchantment> current : merged.keySet()) {
+                    if (!current.equals(enchantment) && !Enchantment.areCompatible(enchantment, current)) {
+                        canApply = false;
                         break;
                     }
                 }
-                if (canApplyFlag) {
-                    newItemEnchants.put(enchantIndex, srcLevel);
-                }
+            }
+
+            if (canApply) {
+                merged.set(enchantment, mergedLevel);
             }
         }
-        EnchantmentHelper.setEnchantments(newItemEnchants, result);
+
+        EnchantmentHelper.setEnchantments(result, merged.toImmutable());
     }
 
     @Override
     public @NotNull RecipeSerializer<?> getSerializer() {
         return SERIALIZER;
     }
-
 }

@@ -4,10 +4,10 @@ import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcent
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
 
 public class RankPointHandler {
     private static final class SingletonHolder {
@@ -22,20 +22,19 @@ public class RankPointHandler {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
     /**
      * Not reached if canceled.
-     *
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public void onLivingDeathEvent(LivingHurtEvent event) {
+    public void onLivingDeathEvent(LivingDamageEvent.Post event) {
 
         LivingEntity victim = event.getEntity();
         if (victim != null) {
-            victim.getCapability(CapabilityConcentrationRank.RANK_POINT)
-                    .ifPresent(cr -> cr.addRankPoint(victim, -cr.getUnitCapacity()));
+            var cr = victim.getData(CapabilityConcentrationRank.RANK_POINT);
+            cr.addRankPoint(victim, -cr.getUnitCapacity());
         }
 
         Entity trueSource = event.getSource().getEntity();
@@ -43,11 +42,10 @@ public class RankPointHandler {
             return;
         }
 
-        if (!sourceEntity.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).isPresent()) {
+        if (ItemSlashBlade.getBladeState(sourceEntity.getMainHandItem()) == null) {
             return;
         }
 
-        trueSource.getCapability(CapabilityConcentrationRank.RANK_POINT)
-                .ifPresent(cr -> cr.addRankPoint(event.getSource()));
+        trueSource.getData(CapabilityConcentrationRank.RANK_POINT).addRankPoint(event.getSource());
     }
 }

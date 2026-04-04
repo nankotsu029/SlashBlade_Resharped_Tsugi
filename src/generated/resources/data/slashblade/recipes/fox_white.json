@@ -19,19 +19,19 @@
       }
     },
     "E": {
-      "tag": "forge:obsidian"
+      "tag": "c:obsidian"
     },
     "F": {
-      "tag": "forge:feathers"
+      "tag": "c:feathers"
     },
     "Q": {
-      "tag": "forge:storage_blocks/quartz"
+      "tag": "c:storage_blocks/quartz"
     },
     "S": {
       "item": "slashblade:proudsoul_crystal"
     },
     "W": {
-      "tag": "forge:crops/wheat"
+      "tag": "c:crops/wheat"
     }
   },
   "pattern": [

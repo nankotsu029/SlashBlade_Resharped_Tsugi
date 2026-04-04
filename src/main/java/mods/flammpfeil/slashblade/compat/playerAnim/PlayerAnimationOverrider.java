@@ -9,8 +9,8 @@ import mods.flammpfeil.slashblade.init.DefaultResources;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.bus.api.SubscribeEvent;
 
 import java.util.Map;
 
@@ -29,10 +29,10 @@ public class PlayerAnimationOverrider {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
-    private static final ResourceLocation MotionLocation = new ResourceLocation(SlashBlade.MODID,
+    private static final ResourceLocation MotionLocation = ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID,
             "model/pa/player_motion.vmd");
 
     public Map<ResourceLocation, VmdAnimation> getAnimation() {

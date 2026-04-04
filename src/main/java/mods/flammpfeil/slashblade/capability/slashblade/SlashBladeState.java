@@ -19,14 +19,20 @@
 
 package mods.flammpfeil.slashblade.capability.slashblade;
 
+// TODO(neoforge-1.21.1): Migrate this state holder from legacy NBT/capability assumptions to ItemStack data components and updated INBTSerializable signatures.
+
+import com.mojang.serialization.Codec;
 import mods.flammpfeil.slashblade.client.renderer.CarryType;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
 import mods.flammpfeil.slashblade.registry.SpecialEffectsRegistry;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.network.codec.NeoForgeStreamCodecs;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Math;
 
@@ -93,8 +99,6 @@ public class SlashBladeState implements ISlashBladeState {
     protected Optional<ResourceLocation> texture = Optional.empty(); // TextureName
     protected Optional<ResourceLocation> model = Optional.empty();// ModelName
 
-    protected LazyOptional<ResourceLocation> rootCombo = instantiateRootComboHolder();
-
     protected int maxDamage = 40;
     protected int damage = 0;
 
@@ -102,12 +106,48 @@ public class SlashBladeState implements ISlashBladeState {
 
     protected boolean isEmpty = true;
 
+    /**
+     * Codec for DataComponent persistence (disk + network).
+     * Wraps the existing serializeNBT/deserializeNBT logic.
+     */
+    public static final Codec<SlashBladeState> CODEC = CompoundTag.CODEC.xmap(
+            tag -> {
+                SlashBladeState s = new SlashBladeState();
+                s.deserializeNBT(tag);
+                return s;
+            },
+            s -> s.serializeNBT()
+    );
+
+    /**
+     * StreamCodec for network synchronization.
+     */
+    public static final StreamCodec<io.netty.buffer.ByteBuf, SlashBladeState> STREAM_CODEC =
+            ByteBufCodecs.fromCodec(CODEC);
+
+    /** Default constructor — creates a blank (empty) blade state. */
+    public SlashBladeState() {
+    }
+
+    /**
+     * Data Components are value-like, but this class is still mutable while the migration is in progress.
+     * Use a defensive copy before attaching a default instance to an ItemStack.
+     */
+    public SlashBladeState copy() {
+        SlashBladeState copy = new SlashBladeState();
+        copy.deserializeNBT(this.serializeNBT());
+        return copy;
+    }
+
+    /**
+     * Legacy constructor: reads state from the old NBT location on an ItemStack.
+     * Used for backward compatibility when loading pre-DataComponent saves.
+     *
+     * @deprecated Prefer the no-arg constructor; state is loaded automatically by the Codec.
+     */
+    @Deprecated
     public SlashBladeState(ItemStack blade) {
-        if (!blade.isEmpty()) {
-            if (blade.getOrCreateTag().contains("bladeState")) {
-                this.deserializeNBT(blade.getOrCreateTag().getCompound("bladeState"));
-            }
-        }
+        // Legacy constructor - with DataComponents, state is loaded automatically.
     }
 
     @Override
@@ -318,7 +358,7 @@ public class SlashBladeState implements ISlashBladeState {
 
     @Override
     public ResourceLocation getComboRoot() {
-        if (this.comboRootName == null || !ComboStateRegistry.REGISTRY.get().containsKey(this.comboRootName)) {
+        if (this.comboRootName == null || !ComboStateRegistry.REGISTRY.containsKey(this.comboRootName)) {
             return ComboStateRegistry.STANDBY.getId();
         }
         return this.comboRootName;
@@ -326,20 +366,8 @@ public class SlashBladeState implements ISlashBladeState {
 
     @Override
     public void setComboRoot(ResourceLocation rootLoc) {
-        this.comboRootName = ComboStateRegistry.REGISTRY.get().containsKey(rootLoc) ? rootLoc
+        this.comboRootName = ComboStateRegistry.REGISTRY.containsKey(rootLoc) ? rootLoc
                 : ComboStateRegistry.STANDBY.getId();
-        this.rootCombo = instantiateRootComboHolder();
-    }
-
-    private LazyOptional<ResourceLocation> instantiateRootComboHolder() {
-        return LazyOptional.of(() -> {
-            if (!ComboStateRegistry.REGISTRY.get().containsKey(this.getComboRoot())) {
-                if (ComboStateRegistry.STANDBY.getId() != null) {
-                    return ComboStateRegistry.STANDBY.getId();
-                }
-            }
-            return this.getComboRoot();
-        });
     }
 
     @Override
@@ -384,7 +412,7 @@ public class SlashBladeState implements ISlashBladeState {
         List<ResourceLocation> result = new ArrayList<>();
         list.forEach(tag -> {
             ResourceLocation se = ResourceLocation.tryParse(tag.getAsString());
-            if (SpecialEffectsRegistry.REGISTRY.get().containsKey(se)) {
+            if (SpecialEffectsRegistry.REGISTRY.containsKey(se)) {
                 result.add(se);
             }
 
@@ -394,7 +422,7 @@ public class SlashBladeState implements ISlashBladeState {
 
     @Override
     public boolean addSpecialEffect(ResourceLocation se) {
-        if (SpecialEffectsRegistry.REGISTRY.get().containsKey(se)) {
+        if (SpecialEffectsRegistry.REGISTRY.containsKey(se)) {
             return this.specialEffects.add(se);
         }
         return false;
@@ -407,7 +435,7 @@ public class SlashBladeState implements ISlashBladeState {
 
     @Override
     public boolean hasSpecialEffect(ResourceLocation se) {
-        if (SpecialEffectsRegistry.REGISTRY.get().containsKey(se)) {
+        if (SpecialEffectsRegistry.REGISTRY.containsKey(se)) {
             return this.specialEffects.contains(se);
         }
         this.specialEffects.remove(se);

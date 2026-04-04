@@ -9,9 +9,9 @@ import mods.flammpfeil.slashblade.recipe.SlashBladeSmithingRecipe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.world.Container;
-import net.minecraft.world.SimpleContainer;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.SmithingRecipeInput;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,11 +20,11 @@ public class SlashBladeSmithingEmiRecipe extends EMISimpleRecipe {
 
     private final SlashBladeSmithingRecipe recipe;
 
-    public SlashBladeSmithingEmiRecipe(SlashBladeSmithingRecipe recipe) {
+    public SlashBladeSmithingEmiRecipe(ResourceLocation id, SlashBladeSmithingRecipe recipe) {
         super(
                 createInputs(recipe),
                 createOutputs(recipe),
-                recipe.getId()
+                id
         );
         this.recipe = recipe;
     }
@@ -48,7 +48,7 @@ public class SlashBladeSmithingEmiRecipe extends EMISimpleRecipe {
         ItemStack addition = additions[0];
         for (ItemStack template : recipe.getTemplate().getItems()) {
             for (ItemStack base : recipe.getBase().getItems()) {
-                Container input = createInput(template, base, addition);
+                SmithingRecipeInput input = createInput(template, base, addition);
                 ItemStack output = assembleResultItem(input, recipe);
                 if (!output.isEmpty()) {
                     outputs.add(EmiStack.of(output));
@@ -59,15 +59,11 @@ public class SlashBladeSmithingEmiRecipe extends EMISimpleRecipe {
         return outputs;
     }
 
-    private static Container createInput(ItemStack template, ItemStack base, ItemStack addition) {
-        Container container = new SimpleContainer(3);
-        container.setItem(0, template);
-        container.setItem(1, base);
-        container.setItem(2, addition);
-        return container;
+    private static SmithingRecipeInput createInput(ItemStack template, ItemStack base, ItemStack addition) {
+        return new SmithingRecipeInput(template, base, addition);
     }
 
-    private static ItemStack assembleResultItem(Container input, SlashBladeSmithingRecipe recipe) {
+    private static ItemStack assembleResultItem(SmithingRecipeInput input, SlashBladeSmithingRecipe recipe) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         if (level == null) {

@@ -1,5 +1,6 @@
 package mods.flammpfeil.slashblade.compat.playerAnim;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import dev.kosmx.playerAnim.api.TransformType;
@@ -15,7 +16,6 @@ import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.client.renderer.model.BladeMotionManager;
 import mods.flammpfeil.slashblade.util.TimeValueHelper;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -26,28 +26,10 @@ import java.util.List;
 import java.util.Map;
 
 public class VmdAnimation implements IAnimation {
-    static final LazyOptional<MmdPmdModelMc> alex = LazyOptional.of(() -> {
-        try {
-            return new MmdPmdModelMc(new ResourceLocation(SlashBlade.MODID, "model/pa/alex.pmd"));
-        } catch (IOException | MmdException e) {
-            SlashBlade.LOGGER.warn(e);
-        }
-        return null;
-    });
-
-    static final LazyOptional<MmdMotionPlayerGL2> motionPlayer = LazyOptional.of(() -> {
-        MmdMotionPlayerGL2 mmp = new MmdMotionPlayerGL2();
-
-        alex.ifPresent(pmd -> {
-            try {
-                mmp.setPmd(pmd);
-            } catch (MmdException e) {
-                SlashBlade.LOGGER.warn(e);
-            }
-        });
-
-        return mmp;
-    });
+    private static MmdPmdModelMc alex;
+    private static boolean alexInitialized;
+    private static MmdMotionPlayerGL2 motionPlayer;
+    private static boolean motionPlayerInitialized;
 
     int currentTick;
 
@@ -75,6 +57,36 @@ public class VmdAnimation implements IAnimation {
 
     static final List<String> arms = Lists.newArrayList("leftArm", "rightArm");
     static final List<String> legs = Lists.newArrayList("leftLeg", "rightLeg");
+
+    private static MmdPmdModelMc getAlex() {
+        if (!alexInitialized) {
+            alexInitialized = true;
+            try {
+                alex = new MmdPmdModelMc(ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID, "model/pa/alex.pmd"));
+            } catch (IOException | MmdException e) {
+                SlashBlade.LOGGER.warn(e);
+                alex = null;
+            }
+        }
+        return alex;
+    }
+
+    private static MmdMotionPlayerGL2 getMotionPlayer() {
+        if (!motionPlayerInitialized) {
+            motionPlayerInitialized = true;
+            MmdMotionPlayerGL2 player = new MmdMotionPlayerGL2();
+            MmdPmdModelMc pmd = getAlex();
+            if (pmd != null) {
+                try {
+                    player.setPmd(pmd);
+                } catch (MmdException e) {
+                    SlashBlade.LOGGER.warn(e);
+                }
+            }
+            motionPlayer = player;
+        }
+        return motionPlayer;
+    }
 
     public VmdAnimation(ResourceLocation loc, double start, double end, boolean loop) {
         this.loc = loc;
@@ -152,10 +164,10 @@ public class VmdAnimation implements IAnimation {
             blend.mul(0);
         }
 
-        if (!motionPlayer.isPresent()) {
+        MmdMotionPlayerGL2 mmp = getMotionPlayer();
+        if (mmp == null) {
             return value0;
         }
-        MmdMotionPlayerGL2 mmp = motionPlayer.orElse(null);
 
         String boneName = modelName;
         if (nameMap.containsKey(modelName)) {
@@ -281,11 +293,10 @@ public class VmdAnimation implements IAnimation {
 
     @Override
     public void setupAnim(float tickDelta) {
-        if (!motionPlayer.isPresent()) {
+        MmdMotionPlayerGL2 mmp = getMotionPlayer();
+        if (mmp == null) {
             return;
         }
-
-        MmdMotionPlayerGL2 mmp = motionPlayer.orElse(null);
 
         double eofTime = 0;
         MmdVmdMotionMc motion = BladeMotionManager.getInstance().getMotion(loc);

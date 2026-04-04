@@ -1,8 +1,10 @@
 package mods.flammpfeil.slashblade.entity;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
+// TODO(neoforge-1.21.1): Rewrite this class to the NeoForge payload API; old Forge networking types remain.
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.ability.StunManager;
-import mods.flammpfeil.slashblade.capability.inputstate.InputStateCapabilityProvider;
+import mods.flammpfeil.slashblade.capability.inputstate.CapabilityInputState;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.util.InputCommand;
 import mods.flammpfeil.slashblade.util.KnockBacks;
@@ -23,7 +25,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.PlayMessages;
 
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -39,10 +40,10 @@ public class EntityBlisteringSwords extends EntityAbstractSummonedSword {
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
 
-        this.entityData.define(IT_FIRED, false);
+        builder.define(IT_FIRED, false);
     }
 
     public void doFire() {
@@ -53,7 +54,7 @@ public class EntityBlisteringSwords extends EntityAbstractSummonedSword {
         return this.getEntityData().get(IT_FIRED);
     }
 
-    public static EntityBlisteringSwords createInstance(PlayMessages.SpawnEntity packet, Level worldIn) {
+    public static EntityBlisteringSwords createInstance(Level worldIn) {
         return new EntityBlisteringSwords(SlashBlade.RegistryEvents.BlisteringSwords, worldIn);
     }
 
@@ -89,9 +90,8 @@ public class EntityBlisteringSwords extends EntityAbstractSummonedSword {
             worldIn = sender.level();
             Entity lockTarget = null;
             if (sender instanceof LivingEntity) {
-                lockTarget = sender.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                        .filter(state -> state.getTargetEntity(worldIn) != null)
-                        .map(state -> state.getTargetEntity(worldIn)).orElse(null);
+                var bsTarget = ItemSlashBlade.getBladeState(sender.getMainHandItem());
+                if (bsTarget != null) lockTarget = bsTarget.getTargetEntity(worldIn);
             }
 
             Optional<Entity> foundTarget;
@@ -140,22 +140,18 @@ public class EntityBlisteringSwords extends EntityAbstractSummonedSword {
 
         // this.startRiding()
         this.setDeltaMovement(Vec3.ZERO);
-        if (canUpdate()) {
-            this.baseTick();
-        }
+        this.baseTick();
 
         faceEntityStandby();
         // this.getVehicle().positionRider(this);
 
         // lifetime check
         if (!itFired() && getVehicle() instanceof LivingEntity owner) {
-            owner.getCapability(InputStateCapabilityProvider.INPUT_STATE).ifPresent(s -> {
-                if (!s.getCommands().contains(InputCommand.M_DOWN)) {
-
-                    fireTime = tickCount + getDelay();
-                    doFire();
-                }
-            });
+            var ownerInput = owner.getData(CapabilityInputState.INPUT_STATE);
+            if (!ownerInput.getCommands().contains(InputCommand.M_DOWN)) {
+                fireTime = tickCount + getDelay();
+                doFire();
+            }
         }
 
         /*

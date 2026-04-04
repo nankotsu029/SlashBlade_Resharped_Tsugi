@@ -1,7 +1,9 @@
 package mods.flammpfeil.slashblade.data;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
+// TODO(neoforge-1.21.1): Replace remaining ForgeRegistries references with BuiltInRegistries, Registries, or NeoForgeRegistries as appropriate.
+// TODO(neoforge-1.21.1): Replace ForgeRegistries.ENCHANTMENTS with a RegistryAccess/Registries.ENCHANTMENT lookup.
 import mods.flammpfeil.slashblade.SlashBlade;
-import mods.flammpfeil.slashblade.advancement.SlashBladeItemPredicate;
 import mods.flammpfeil.slashblade.data.builtin.SlashBladeBuiltInRegistry;
 import mods.flammpfeil.slashblade.data.tag.SlashBladeItemTags;
 import mods.flammpfeil.slashblade.item.SwordType;
@@ -11,11 +13,14 @@ import mods.flammpfeil.slashblade.recipe.SlashBladeShapedRecipeBuilder;
 import mods.flammpfeil.slashblade.recipe.SlashBladeSmithingRecipeBuilder;
 import mods.flammpfeil.slashblade.registry.SlashBladeItems;
 import mods.flammpfeil.slashblade.registry.slashblade.EnchantmentDefinition;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
-import net.minecraft.data.recipes.FinishedRecipe;
 import net.minecraft.data.recipes.RecipeCategory;
+import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.data.recipes.RecipeProvider;
 import net.minecraft.data.recipes.ShapedRecipeBuilder;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.Items;
@@ -23,21 +28,18 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.ItemLike;
-import net.minecraftforge.common.Tags;
-import net.minecraftforge.common.crafting.conditions.IConditionBuilder;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.common.conditions.IConditionBuilder;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.function.Consumer;
 
 public class SlashBladeRecipeProvider extends RecipeProvider implements IConditionBuilder {
 
-    public SlashBladeRecipeProvider(PackOutput output) {
-        super(output);
+    public SlashBladeRecipeProvider(PackOutput output, java.util.concurrent.CompletableFuture<HolderLookup.Provider> registries) {
+        super(output, registries);
     }
 
     @Override
-    protected void buildRecipes(@NotNull Consumer<FinishedRecipe> consumer) {
+    protected void buildRecipes(@NotNull RecipeOutput consumer) {
         SlashBladeSmithingRecipeBuilder.smithing(
                         Ingredient.of(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE),
                         SlashBladeIngredient.of(
@@ -58,7 +60,7 @@ public class SlashBladeRecipeProvider extends RecipeProvider implements IConditi
                 .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE_WOOD.get()), has(SlashBladeItems.SLASHBLADE_WOOD.get())).save(consumer);
         SlashBladeShapedRecipeBuilder.shaped(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get()).pattern(" EI").pattern("SBD")
                 .pattern("PS ").define('B', SlashBladeItems.SLASHBLADE_BAMBOO.get()).define('I', Tags.Items.INGOTS_IRON)
-                .define('S', Tags.Items.STRING).define('P', Items.PAPER).define('E', Items.EGG)
+                .define('S', Tags.Items.STRINGS).define('P', Items.PAPER).define('E', Items.EGG)
                 .define('D', Tags.Items.DYES_BLACK)
                 .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE_BAMBOO.get()), has(SlashBladeItems.SLASHBLADE_BAMBOO.get())).save(consumer);
         SlashBladeShapedRecipeBuilder.shaped(SlashBladeItems.SLASHBLADE_WHITE.get()).pattern("  L").pattern(" L ").pattern("BG ")
@@ -75,21 +77,15 @@ public class SlashBladeRecipeProvider extends RecipeProvider implements IConditi
                                 .name(SlashBladeBuiltInRegistry.YAMATO.location()).addSwordType(SwordType.BROKEN)
                                 .addSwordType(SwordType.SEALED).build()))
                 .define('P', SlashBladeItems.PROUDSOUL_SPHERE.get())
-                .unlockedBy(getHasName(SlashBladeItems.PROUDSOUL_SPHERE.get()), inventoryTrigger(
-                        new SlashBladeItemPredicate(
-                                RequestDefinition.Builder.newInstance()
-                                        .name(SlashBladeBuiltInRegistry.YAMATO.location()).addSwordType(SwordType.BROKEN)
-                                        .addSwordType(SwordType.SEALED).build()
-                        )
-
-                ))
+                // TODO(neoforge-1.21.1): Restore request-aware advancement predicates with an ItemSubPredicate.
+                .unlockedBy(getHasName(SlashBladeItems.PROUDSOUL_SPHERE.get()), has(SlashBladeItems.SLASHBLADE.get()))
                 .save(consumer, SlashBlade.prefix("yamato_fix"));
 
         SlashBladeShapedRecipeBuilder.shaped(SlashBladeItems.SLASHBLADE.get()).pattern(" EI").pattern("PBD").pattern("SI ")
                 .define('B',
                         SlashBladeIngredient.of(SlashBladeItems.SLASHBLADE_WHITE.get(),
                                 RequestDefinition.Builder.newInstance().addSwordType(SwordType.BROKEN).build()))
-                .define('I', Tags.Items.INGOTS_GOLD).define('S', Tags.Items.STRING).define('P', Tags.Items.DYES_BLUE)
+                .define('I', Tags.Items.INGOTS_GOLD).define('S', Tags.Items.STRINGS).define('P', Tags.Items.DYES_BLUE)
                 .define('E', Tags.Items.RODS_BLAZE).define('D', Tags.Items.STORAGE_BLOCKS_COAL)
                 .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE_WHITE.get()), has(SlashBladeItems.SLASHBLADE_WHITE.get())).save(consumer);
 
@@ -98,15 +94,15 @@ public class SlashBladeRecipeProvider extends RecipeProvider implements IConditi
                 .define('B',
                         SlashBladeIngredient.of(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get(),
                                 RequestDefinition.Builder.newInstance().addSwordType(SwordType.BROKEN).build()))
-                .define('I', SlashBladeItems.PROUDSOUL.get()).define('S', Tags.Items.STRING).define('P', SlashBladeItems.PROUDSOUL_INGOT.get())
+                .define('I', SlashBladeItems.PROUDSOUL.get()).define('S', Tags.Items.STRINGS).define('P', SlashBladeItems.PROUDSOUL_INGOT.get())
                 .define('D', Tags.Items.DYES_RED)
                 .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get()), has(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get()))
                 .save(consumer);
 
         SlashBladeShapedRecipeBuilder.shaped(SlashBladeBuiltInRegistry.FOX_BLACK.location()).pattern(" EF")
                 .pattern("BCS").pattern("WQ ").define('W', Tags.Items.CROPS_WHEAT)
-                .define('Q', Tags.Items.STORAGE_BLOCKS_QUARTZ).define('B', Items.BLAZE_POWDER)
-                .define('S', SlashBladeItems.PROUDSOUL_CRYSTAL.get()).define('E', Tags.Items.OBSIDIAN)
+                .define('Q', Tags.Items.GEMS_QUARTZ).define('B', Items.BLAZE_POWDER)
+                .define('S', SlashBladeItems.PROUDSOUL_CRYSTAL.get()).define('E', Tags.Items.OBSIDIANS)
                 .define('F', Tags.Items.FEATHERS)
                 .define('C', SlashBladeIngredient.of(RequestDefinition.Builder.newInstance()
                         .name(SlashBladeBuiltInRegistry.RUBY.location())
@@ -117,15 +113,15 @@ public class SlashBladeRecipeProvider extends RecipeProvider implements IConditi
 
         SlashBladeShapedRecipeBuilder.shaped(SlashBladeBuiltInRegistry.FOX_WHITE.location()).pattern(" EF")
                 .pattern("BCS").pattern("WQ ").define('W', Tags.Items.CROPS_WHEAT)
-                .define('Q', Tags.Items.STORAGE_BLOCKS_QUARTZ).define('B', Items.BLAZE_POWDER)
-                .define('S', SlashBladeItems.PROUDSOUL_CRYSTAL.get()).define('E', Tags.Items.OBSIDIAN)
+                .define('Q', Tags.Items.GEMS_QUARTZ).define('B', Items.BLAZE_POWDER)
+                .define('S', SlashBladeItems.PROUDSOUL_CRYSTAL.get()).define('E', Tags.Items.OBSIDIANS)
                 .define('F', Tags.Items.FEATHERS)
                 .define('C',
                         SlashBladeIngredient.of(
                                 RequestDefinition.Builder.newInstance().name(SlashBladeBuiltInRegistry.RUBY.location())
 
                                         .addEnchantment(new EnchantmentDefinition(
-                                                getEnchantmentID(Enchantments.MOB_LOOTING), 1))
+                                                getEnchantmentID(Enchantments.LOOTING), 1))
                                         .build()))
 
                 .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get()), has(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get()))
@@ -137,12 +133,8 @@ public class SlashBladeRecipeProvider extends RecipeProvider implements IConditi
                         SlashBladeIngredient
                                 .of(RequestDefinition.Builder.newInstance().proudSoul(10000).refineCount(20).build()))
                 .define('S', Ingredient.of(SlashBladeItems.PROUDSOUL_SPHERE.get()))
-                .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE.get()), inventoryTrigger(
-                        new SlashBladeItemPredicate(
-                                RequestDefinition.Builder.newInstance().build()
-                        )
-
-                )).save(consumer);
+                // TODO(neoforge-1.21.1): Restore request-aware advancement predicates with an ItemSubPredicate.
+                .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE.get()), has(SlashBladeItems.SLASHBLADE.get())).save(consumer);
 
         SlashBladeShapedRecipeBuilder.shaped(SlashBladeBuiltInRegistry.TAGAYASAN.location()).pattern("SES")
                 .pattern("DBD").pattern("SES")
@@ -208,12 +200,8 @@ public class SlashBladeRecipeProvider extends RecipeProvider implements IConditi
                                         new EnchantmentDefinition(getEnchantmentID(Enchantments.FIRE_ASPECT), 1))
                                 .build()))
                 .define('S', Ingredient.of(SlashBladeItems.PROUDSOUL_SPHERE.get()))
-                .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE.get()), inventoryTrigger(
-                        new SlashBladeItemPredicate(
-                                RequestDefinition.Builder.newInstance().build()
-                        )
-
-                )).save(consumer);
+                // TODO(neoforge-1.21.1): Restore request-aware advancement predicates with an ItemSubPredicate.
+                .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE.get()), has(SlashBladeItems.SLASHBLADE.get())).save(consumer);
 
         rodaiRecipe(SlashBladeBuiltInRegistry.RODAI_WOODEN.location(), Items.WOODEN_SWORD, consumer);
         rodaiRecipe(SlashBladeBuiltInRegistry.RODAI_STONE.location(), Items.STONE_SWORD, consumer);
@@ -223,27 +211,27 @@ public class SlashBladeRecipeProvider extends RecipeProvider implements IConditi
         rodaiAdvRecipe(SlashBladeBuiltInRegistry.RODAI_NETHERITE.location(), Items.NETHERITE_SWORD, consumer);
     }
 
-    private void rodaiRecipe(ResourceLocation rodai, ItemLike sword, Consumer<FinishedRecipe> consumer) {
+    private void rodaiRecipe(ResourceLocation rodai, ItemLike sword, RecipeOutput consumer) {
         SlashBladeShapedRecipeBuilder.shaped(rodai).pattern("  P").pattern(" B ").pattern("WS ").define('B',
                         SlashBladeIngredient.of(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get(),
                                 RequestDefinition.Builder.newInstance().killCount(100).addSwordType(SwordType.BROKEN).build()))
-                .define('W', Ingredient.of(sword)).define('S', Ingredient.of(Tags.Items.STRING))
+                .define('W', Ingredient.of(sword)).define('S', Ingredient.of(Tags.Items.STRINGS))
                 .define('P', Ingredient.of(SlashBladeItems.PROUDSOUL_CRYSTAL.get()))
                 .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get()), has(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get()))
                 .save(consumer);
     }
 
-    private void rodaiAdvRecipe(ResourceLocation rodai, ItemLike sword, Consumer<FinishedRecipe> consumer) {
+    private void rodaiAdvRecipe(ResourceLocation rodai, ItemLike sword, RecipeOutput consumer) {
         SlashBladeShapedRecipeBuilder.shaped(rodai).pattern("  P").pattern(" B ").pattern("WS ").define('B',
                         SlashBladeIngredient.of(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get(),
                                 RequestDefinition.Builder.newInstance().killCount(100).addSwordType(SwordType.BROKEN).build()))
-                .define('W', Ingredient.of(sword)).define('S', Ingredient.of(Tags.Items.STRING))
+                .define('W', Ingredient.of(sword)).define('S', Ingredient.of(Tags.Items.STRINGS))
                 .define('P', Ingredient.of(SlashBladeItems.PROUDSOUL_TRAPEZOHEDRON.get()))
                 .unlockedBy(getHasName(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get()), has(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get()))
                 .save(consumer);
     }
 
-    private static ResourceLocation getEnchantmentID(Enchantment enchantment) {
-        return ForgeRegistries.ENCHANTMENTS.getKey(enchantment);
+    private static ResourceLocation getEnchantmentID(ResourceKey<Enchantment> enchantment) {
+        return enchantment.location();
     }
 }

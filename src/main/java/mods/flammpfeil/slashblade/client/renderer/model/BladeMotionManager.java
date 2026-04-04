@@ -7,8 +7,7 @@ import jp.nyatla.nymmd.MmdException;
 import jp.nyatla.nymmd.MmdVmdMotionMc;
 import mods.flammpfeil.slashblade.SlashBlade;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.client.event.TextureStitchEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.TextureAtlasStitchedEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -55,8 +54,7 @@ public class BladeMotionManager {
                 }, Executors.newCachedThreadPool()));
     }
 
-    @SubscribeEvent
-    public void reload(TextureStitchEvent.Post event) {
+    public void reload(TextureAtlasStitchedEvent event) {
         cache.invalidateAll();
 
         try {

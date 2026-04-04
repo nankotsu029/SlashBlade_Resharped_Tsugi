@@ -1,5 +1,8 @@
 package mods.flammpfeil.slashblade.recipe;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
+// TODO(neoforge-1.21.1): Replace remaining ForgeRegistries references with BuiltInRegistries, Registries, or NeoForgeRegistries as appropriate.
+// TODO(neoforge-1.21.1): Replace ForgeRegistries.ENCHANTMENTS with a RegistryAccess/Registries.ENCHANTMENT lookup.
 import com.google.common.collect.Lists;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -11,11 +14,11 @@ import mods.flammpfeil.slashblade.capability.slashblade.SlashBladeState;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.item.SwordType;
 import mods.flammpfeil.slashblade.registry.slashblade.EnchantmentDefinition;
+import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import net.minecraft.Util;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,7 +72,8 @@ public record RequestDefinition(ResourceLocation name, int proudSoulCount, int k
     }
 
     public void initItemStack(ItemStack blade) {
-        var state = blade.getCapability(ItemSlashBlade.BLADESTATE).orElse(new SlashBladeState(blade));
+        var state = ItemSlashBlade.getBladeState(blade);
+        if (state == null) state = ItemSlashBlade.getOrCreateBladeState(blade);
         state.setNonEmpty();
         if (!this.name.equals(SlashBlade.prefix("none"))) {
             state.setTranslationKey(getTranslationKey());
@@ -79,23 +83,27 @@ public record RequestDefinition(ResourceLocation name, int proudSoulCount, int k
         state.setRefine(refineCount());
 
         this.enchantments()
-                .forEach(enchantment -> blade.enchant(
-                        ForgeRegistries.ENCHANTMENTS.getValue(enchantment.getEnchantmentID()),
-                        enchantment.getEnchantmentLevel()));
+                .forEach(enchantment -> {
+                    var value = EnchantmentCompat.resolve(enchantment.getEnchantmentID());
+                    if (value != null) {
+                        blade.enchant(value, enchantment.getEnchantmentLevel());
+                    }
+                });
+        final var bladeState = state;
         this.defaultType.forEach(type -> {
             switch (type) {
-                case BEWITCHED -> state.setDefaultBewitched(true);
+                case BEWITCHED -> bladeState.setDefaultBewitched(true);
                 case BROKEN -> {
                     blade.setDamageValue(blade.getMaxDamage() - 1);
-                    state.setBroken(true);
+                    bladeState.setBroken(true);
                 }
-                case SEALED -> state.setSealed(true);
+                case SEALED -> bladeState.setSealed(true);
                 default -> {
                 }
             }
         });
 
-        blade.getOrCreateTag().put("bladeState", state.serializeNBT());
+        ItemSlashBlade.setBladeState(blade, state);
     }
 
 
@@ -103,10 +111,10 @@ public record RequestDefinition(ResourceLocation name, int proudSoulCount, int k
         if (blade == null || blade.isEmpty()) {
             return false;
         }
-        if (!blade.getCapability(ItemSlashBlade.BLADESTATE).isPresent()) {
+        var state = ItemSlashBlade.getBladeState(blade);
+        if (state == null) {
             return false;
         }
-        var state = blade.getCapability(ItemSlashBlade.BLADESTATE).orElseThrow(NullPointerException::new);
         boolean nameCheck;
         if (this.name.equals(SlashBlade.prefix("none"))) {
             nameCheck = state.getTranslationKey().isBlank();
@@ -118,8 +126,8 @@ public record RequestDefinition(ResourceLocation name, int proudSoulCount, int k
         boolean refineCheck = state.getRefine() >= this.refineCount();
 
         for (var enchantment : this.enchantments()) {
-            if (blade.getEnchantmentLevel(ForgeRegistries.ENCHANTMENTS
-                    .getValue(enchantment.getEnchantmentID())) < enchantment.getEnchantmentLevel()) {
+            var value = EnchantmentCompat.resolve(enchantment.getEnchantmentID());
+            if (value == null || blade.getEnchantmentLevel(value) < enchantment.getEnchantmentLevel()) {
                 return false;
             }
         }

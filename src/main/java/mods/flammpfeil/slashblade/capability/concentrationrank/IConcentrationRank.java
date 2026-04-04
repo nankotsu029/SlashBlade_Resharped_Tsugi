@@ -4,16 +4,13 @@ import com.google.common.collect.ImmutableRangeMap;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
-import mods.flammpfeil.slashblade.network.NetworkManager;
 import mods.flammpfeil.slashblade.network.RankSyncMessage;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.PacketDistributor;
-
-import java.util.Optional;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 public interface IConcentrationRank {
 
@@ -111,11 +108,8 @@ public interface IConcentrationRank {
             this.setLastRankRise(time);
         }
 
-        if (user instanceof ServerPlayer && !user.level().isClientSide()) {
-
-            RankSyncMessage msg = new RankSyncMessage();
-            msg.rawPoint = this.getRawRankPoint();
-            NetworkManager.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) user), msg);
+        if (user instanceof ServerPlayer sp && !user.level().isClientSide()) {
+            PacketDistributor.sendToPlayer(sp, new RankSyncMessage(this.getRawRankPoint()));
         }
     }
 
@@ -126,10 +120,10 @@ public interface IConcentrationRank {
 
         ItemStack stack = user.getMainHandItem();
 
-        Optional<ResourceLocation> combo = stack.getCapability(ItemSlashBlade.BLADESTATE)
-                .map(s -> s.resolvCurrentComboState(user));
+        var bladeState = ItemSlashBlade.getBladeState(stack);
+        ResourceLocation combo = bladeState != null ? bladeState.resolvCurrentComboState(user) : null;
 
-        float modifier = combo.map(this::getRankPointModifier).orElse(getRankPointModifier(src));
+        float modifier = combo != null ? getRankPointModifier(combo) : getRankPointModifier(src);
 
         addRankPoint(user, (long) (modifier * getUnitCapacity()));
     }

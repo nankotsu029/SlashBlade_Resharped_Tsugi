@@ -11,16 +11,17 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Drowned;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.monster.ZombifiedPiglin;
-import net.minecraftforge.event.entity.living.MobSpawnEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.Objects;
 
-@Mod.EventBusSubscriber
+@EventBusSubscriber(modid = "slashblade")
 public class EntitySpawnEventHandler {
     @SubscribeEvent
-    public static void onMobSpawn(MobSpawnEvent.FinalizeSpawn event) {
+    public static void onMobSpawn(FinalizeSpawnEvent event) {
         LivingEntity entity = event.getEntity();
         boolean isZombie = isZombie(entity);
         if (!isZombie) {

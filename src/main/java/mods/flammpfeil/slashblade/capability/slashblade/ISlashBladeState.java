@@ -1,5 +1,6 @@
 package mods.flammpfeil.slashblade.capability.slashblade;
 
+// TODO(neoforge-1.21.1): Update registry lookups, enchantment access, and ResourceLocation parsing for 1.21.1 APIs.
 import com.google.common.collect.ImmutableRangeMap;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
@@ -13,9 +14,11 @@ import mods.flammpfeil.slashblade.registry.SlashArtsRegistry;
 import mods.flammpfeil.slashblade.registry.combo.ComboState;
 import mods.flammpfeil.slashblade.slasharts.SlashArts;
 import mods.flammpfeil.slashblade.util.AdvancementHelper;
+import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import mods.flammpfeil.slashblade.util.EnumSetConverter;
 import mods.flammpfeil.slashblade.util.NBTHelper;
 import mods.flammpfeil.slashblade.util.TimeValueHelper;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -25,8 +28,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.util.INBTSerializable;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.util.INBTSerializable;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -36,7 +39,7 @@ import java.util.*;
 public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
 
     @Override
-    default CompoundTag serializeNBT() {
+    default CompoundTag serializeNBT(HolderLookup.Provider provider) {
         CompoundTag tag = new CompoundTag();
         // action state
         tag.putLong("lastActionTime", this.getLastActionTime());
@@ -86,8 +89,16 @@ public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
         return tag;
     }
 
-    @Override
     default void deserializeNBT(CompoundTag tag) {
+        deserializeNBT(null, tag);
+    }
+
+    default CompoundTag serializeNBT() {
+        return serializeNBT(null);
+    }
+
+    @Override
+    default void deserializeNBT(HolderLookup.Provider provider, CompoundTag tag) {
         if (tag == null) {
             return;
         }
@@ -127,13 +138,13 @@ public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
         this.setAdjust(NBTHelper.getVector3d(tag, "adjustXYZ"));
 
         if (tag.contains("TextureName")) {
-            this.setTexture(new ResourceLocation(tag.getString("TextureName")));
+            this.setTexture(ResourceLocation.parse(tag.getString("TextureName")));
         } else {
             this.setTexture(null);
         }
 
         if (tag.contains("ModelName")) {
-            this.setModel(new ResourceLocation(tag.getString("ModelName")));
+            this.setModel(ResourceLocation.parse(tag.getString("ModelName")));
         } else {
             this.setModel(null);
         }
@@ -204,7 +215,7 @@ public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
         ResourceLocation key = getSlashArtsKey();
         SlashArts result = null;
         if (key != null) {
-            result = SlashArtsRegistry.REGISTRY.get().containsKey(key) ? SlashArtsRegistry.REGISTRY.get().getValue(key)
+            result = SlashArtsRegistry.REGISTRY.containsKey(key) ? SlashArtsRegistry.REGISTRY.get(key)
                     : SlashArtsRegistry.JUDGEMENT_CUT.get();
         }
 
@@ -304,7 +315,7 @@ public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
 
     default ResourceLocation progressCombo(LivingEntity user, boolean isVirtual) {
         ResourceLocation currentloc = resolvCurrentComboState(user);
-        ComboState current = ComboStateRegistry.REGISTRY.get().getValue(currentloc);
+        ComboState current = ComboStateRegistry.REGISTRY.get(currentloc);
 
         if (current == null) {
             return ComboStateRegistry.NONE.getId();
@@ -315,9 +326,9 @@ public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
             return ComboStateRegistry.NONE.getId();
         }
 
-        ResourceLocation rootNext = Objects.requireNonNull(ComboStateRegistry.REGISTRY.get().getValue(getComboRoot())).getNext(user);
-        ComboState nextCS = ComboStateRegistry.REGISTRY.get().getValue(next);
-        ComboState rootNextCS = ComboStateRegistry.REGISTRY.get().getValue(rootNext);
+        ResourceLocation rootNext = Objects.requireNonNull(ComboStateRegistry.REGISTRY.get(getComboRoot())).getNext(user);
+        ComboState nextCS = ComboStateRegistry.REGISTRY.get(next);
+        ComboState rootNextCS = ComboStateRegistry.REGISTRY.get(rootNext);
         ResourceLocation resolved = null;
         if (rootNextCS != null) {
             if (nextCS != null) {
@@ -347,7 +358,7 @@ public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
 
         Map.Entry<Integer, ResourceLocation> currentloc = resolvCurrentComboStateTicks(user);
 
-        ComboState current = ComboStateRegistry.REGISTRY.get().getValue(currentloc.getValue());
+        ComboState current = ComboStateRegistry.REGISTRY.get(currentloc.getValue());
         if (current == null) {
             return ComboStateRegistry.NONE.getId();
         }
@@ -384,13 +395,13 @@ public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
 
         SlashBladeEvent.ChargeActionEvent event = new SlashBladeEvent.ChargeActionEvent(user, elapsed, this, csloc,
                 type);
-        MinecraftForge.EVENT_BUS.post(event);
+        NeoForge.EVENT_BUS.post(event);
         if (event.isCanceled()) {
             return ComboStateRegistry.NONE.getId();
         }
 
         csloc = event.getComboState();
-        ComboState cs = ComboStateRegistry.REGISTRY.get().getValue(csloc);
+        ComboState cs = ComboStateRegistry.REGISTRY.get(csloc);
 
         if (csloc != ComboStateRegistry.NONE.getId() && !currentloc.getValue().equals(csloc)) {
 
@@ -406,13 +417,13 @@ public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
 
     default void updateComboSeq(LivingEntity entity, ResourceLocation loc) {
         BladeMotionEvent event = new BladeMotionEvent(entity, loc);
-        MinecraftForge.EVENT_BUS.post(event);
+        NeoForge.EVENT_BUS.post(event);
         if (event.isCanceled()) {
             return;
         }
         this.setComboSeq(event.getCombo());
         this.setLastActionTime(entity.level().getGameTime());
-        ComboState cs = ComboStateRegistry.REGISTRY.get().getValue(event.getCombo());
+        ComboState cs = ComboStateRegistry.REGISTRY.get(event.getCombo());
         if (cs != null) {
             cs.clickAction(event.getEntity());
         }
@@ -426,10 +437,10 @@ public interface ISlashBladeState extends INBTSerializable<CompoundTag> {
     }
 
     default Map.Entry<Integer, ResourceLocation> resolvCurrentComboStateTicks(LivingEntity user) {
-        ResourceLocation current = ComboStateRegistry.REGISTRY.get().containsKey(getComboSeq()) ? getComboSeq()
+        ResourceLocation current = ComboStateRegistry.REGISTRY.containsKey(getComboSeq()) ? getComboSeq()
                 : ComboStateRegistry.NONE.getId();
-        ComboState currentCS = ComboStateRegistry.REGISTRY.get().getValue(current) != null
-                ? ComboStateRegistry.REGISTRY.get().getValue(current)
+        ComboState currentCS = ComboStateRegistry.REGISTRY.get(current) != null
+                ? ComboStateRegistry.REGISTRY.get(current)
                 : ComboStateRegistry.NONE.get();
         int time = (int) TimeValueHelper.getMSecFromTicks(getElapsedTime(user));
 

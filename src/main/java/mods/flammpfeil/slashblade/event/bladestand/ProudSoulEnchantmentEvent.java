@@ -4,12 +4,11 @@ import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
 import mods.flammpfeil.slashblade.event.SlashBladeEvent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraftforge.eventbus.api.Cancelable;
+import net.neoforged.bus.api.ICancellableEvent;
 
 import javax.annotation.Nullable;
 
-@Cancelable
-public class ProudSoulEnchantmentEvent extends SlashBladeEvent {
+public class ProudSoulEnchantmentEvent extends SlashBladeEvent implements ICancellableEvent {
     private int totalShrinkCount;
     private float probability;
     private Enchantment enchantment;

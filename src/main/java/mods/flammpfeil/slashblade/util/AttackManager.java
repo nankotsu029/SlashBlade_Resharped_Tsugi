@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.ability.ArrowReflector;
 import mods.flammpfeil.slashblade.ability.TNTExtinguisher;
-import mods.flammpfeil.slashblade.capability.concentrationrank.ConcentrationRankCapabilityProvider;
+import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank;
 import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
 import mods.flammpfeil.slashblade.entity.EntityAbstractSummonedSword;
 import mods.flammpfeil.slashblade.entity.EntitySlashEffect;
@@ -26,7 +26,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.MinecraftForge;
+import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -38,10 +38,10 @@ public class AttackManager {
     public static boolean isPowered(LivingEntity entity) {
         ItemStack blade = entity.getMainHandItem();
         boolean result = entity.hasEffect(MobEffects.DAMAGE_BOOST) || entity.hasEffect(MobEffects.HUNGER);
-        if (blade.getCapability(ItemSlashBlade.BLADESTATE).isPresent()) {
-            var state = blade.getCapability(ItemSlashBlade.BLADESTATE).orElseThrow(NullPointerException::new);
+        var state = ItemSlashBlade.getBladeState(blade);
+        if (state != null) {
             var event = new SlashBladeEvent.PowerBladeEvent(blade, state, entity, result);
-            MinecraftForge.EVENT_BUS.post(event);
+            NeoForge.EVENT_BUS.post(event);
             result = event.isPowered();
         }
 
@@ -77,8 +77,8 @@ public class AttackManager {
     public static EntitySlashEffect doSlash(LivingEntity playerIn, float roll, Vec3 centerOffset, boolean mute,
                                             boolean critical, double comboRatio, KnockBacks knockback) {
 
-        int colorCode = playerIn.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                .map(ISlashBladeState::getColorCode).orElse(0xFFFFFF);
+        var bs = ItemSlashBlade.getBladeState(playerIn.getMainHandItem());
+        int colorCode = bs != null ? bs.getColorCode() : 0xFFFFFF;
 
         return doSlash(playerIn, roll, colorCode, centerOffset, mute, critical, comboRatio, knockback);
     }
@@ -90,14 +90,15 @@ public class AttackManager {
             return null;
         }
         ItemStack blade = playerIn.getMainHandItem();
-        if (!blade.getCapability(ItemSlashBlade.BLADESTATE).isPresent()) {
+        var bladeState = ItemSlashBlade.getBladeState(blade);
+        if (bladeState == null) {
             return null;
         }
-        SlashBladeEvent.DoSlashEvent event = new SlashBladeEvent.DoSlashEvent(blade,
-                blade.getCapability(ItemSlashBlade.BLADESTATE).orElseThrow(NullPointerException::new),
+        SlashBladeEvent.DoSlashEvent event = new SlashBladeEvent.DoSlashEvent(blade, bladeState,
                 playerIn, roll, critical, comboRatio, knockback);
 
-        if (MinecraftForge.EVENT_BUS.post(event)) {
+        NeoForge.EVENT_BUS.post(event);
+        if (event.isCanceled()) {
             return null;
         }
         Vec3 pos = playerIn.position().add(0.0D, (double) playerIn.getEyeHeight() * 0.75D, 0.0D)
@@ -123,8 +124,7 @@ public class AttackManager {
 
         jc.setKnockBack(event.getKnockback());
 
-        playerIn.getCapability(ConcentrationRankCapabilityProvider.RANK_POINT)
-                .ifPresent(rank -> jc.setRank(rank.getRankLevel(playerIn.level().getGameTime())));
+        jc.setRank(playerIn.getData(CapabilityConcentrationRank.RANK_POINT).getRankLevel(playerIn.level().getGameTime()));
 
         playerIn.level().addFreshEntity(jc);
 
@@ -149,8 +149,7 @@ public class AttackManager {
 
         jc.setKnockBack(KnockBacks.cancel);
 
-        living.getCapability(ConcentrationRankCapabilityProvider.RANK_POINT)
-                .ifPresent(rank -> jc.setRank(rank.getRankLevel(living.level().getGameTime())));
+        jc.setRank(living.getData(CapabilityConcentrationRank.RANK_POINT).getRankLevel(living.level().getGameTime()));
 
         jc.setLifetime(36);
 
@@ -187,7 +186,7 @@ public class AttackManager {
                                         0.05D,
                                         Math.cos(yRot * (float) Math.PI / 180.0F) * 0.5));
                                 double baseAmount = living.getAttributeValue(Attributes.ATTACK_DAMAGE);
-                                int powerLevel = living.getMainHandItem().getEnchantmentLevel(Enchantments.POWER_ARROWS);
+                                int powerLevel = EnchantmentCompat.getLevel(living.getMainHandItem(), living, Enchantments.POWER);
                                 baseAmount *= 1 + powerLevel * 0.1;
                                 baseAmount += AttackHelper.getRankBonus(living);
                                 if (this.getShooter() instanceof LivingEntity shooter) {
@@ -210,8 +209,8 @@ public class AttackManager {
         jc.setYRot(living.getYRot() - 22.5F);
         jc.setXRot(0);
 
-        int colorCode = living.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                .map(ISlashBladeState::getColorCode).orElse(0xFFFFFF);
+        var livingBs = ItemSlashBlade.getBladeState(living.getMainHandItem());
+        int colorCode = livingBs != null ? livingBs.getColorCode() : 0xFFFFFF;
         jc.setColor(colorCode);
 
         jc.setMute(false);
@@ -284,7 +283,7 @@ public class AttackManager {
                 double baseAmount = owner.getDamage();
                 if (owner.getShooter() instanceof LivingEntity living) {
                     if (!(owner instanceof EntitySlashEffect)) {
-                        int powerLevel = living.getMainHandItem().getEnchantmentLevel(Enchantments.POWER_ARROWS);
+                        int powerLevel = EnchantmentCompat.getLevel(living.getMainHandItem(), living, Enchantments.POWER);
                         baseAmount += powerLevel * 0.1;
                     }
                     baseAmount *= living.getAttributeValue(Attributes.ATTACK_DAMAGE);
@@ -327,15 +326,17 @@ public class AttackManager {
     }
 
     public static void doMeleeAttack(LivingEntity attacker, Entity target, boolean forceHit, boolean resetHit, float comboRatio) {
-        doManagedAttack((t) ->
-                attacker.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).ifPresent((state) -> {
-                    try {
-                        state.setOnClick(true);
-                        AttackHelper.attack(attacker, t, comboRatio);
-                    } finally {
-                        state.setOnClick(false);
-                    }
-                }), target, forceHit, resetHit);
+        doManagedAttack((t) -> {
+            var state = ItemSlashBlade.getBladeState(attacker.getMainHandItem());
+            if (state != null) {
+                try {
+                    state.setOnClick(true);
+                    AttackHelper.attack(attacker, t, comboRatio);
+                } finally {
+                    state.setOnClick(false);
+                }
+            }
+        }, target, forceHit, resetHit);
 
         ArrowReflector.doReflect(target, attacker);
         TNTExtinguisher.doExtinguishing(target, attacker);
@@ -362,7 +363,7 @@ public class AttackManager {
     }
 
     public static float getSlashBladeDamageScale(LivingEntity entity) {
-        AttributeInstance attributeInstance = entity.getAttribute(ModAttributes.getSlashBladeDamage());
+        AttributeInstance attributeInstance = entity.getAttribute(ModAttributes.SLASHBLADE_DAMAGE);
         if (attributeInstance != null) {
             return (float) attributeInstance.getValue();
         }

@@ -1,72 +1,67 @@
 package mods.flammpfeil.slashblade.network;
 
+import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.capability.inputstate.CapabilityInputState;
 import mods.flammpfeil.slashblade.event.handler.InputCommandEvent;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.util.EnumSetConverter;
 import mods.flammpfeil.slashblade.util.InputCommand;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.EnumSet;
-import java.util.function.Supplier;
 
-public class MoveCommandMessage {
-    public int command;
+public record MoveCommandMessage(int command) implements CustomPacketPayload {
 
-    public MoveCommandMessage() {
+    public static final CustomPacketPayload.Type<MoveCommandMessage> TYPE =
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID, "move_command"));
+
+    public static final StreamCodec<RegistryFriendlyByteBuf, MoveCommandMessage> STREAM_CODEC = StreamCodec.of(
+            (buf, msg) -> buf.writeInt(msg.command()),
+            buf -> new MoveCommandMessage(buf.readInt())
+    );
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
-    static public MoveCommandMessage decode(FriendlyByteBuf buf) {
-        MoveCommandMessage msg = new MoveCommandMessage();
-        msg.command = buf.readInt();
-        return msg;
-    }
-
-    static public void encode(MoveCommandMessage msg, FriendlyByteBuf buf) {
-        buf.writeInt(msg.command);
-    }
-
-    static public void handle(MoveCommandMessage msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            // Work that needs to be threadsafe (most work)
-            ServerPlayer sender = ctx.get().getSender(); // the client that sent this packet
-            // do stuff
-            ItemStack stack = null;
-            if (sender != null) {
-                stack = sender.getItemInHand(InteractionHand.MAIN_HAND);
-            }
-            if (stack != null && stack.isEmpty()) {
-                return;
-            }
-            if (stack != null && !(stack.getCapability(ItemSlashBlade.BLADESTATE).isPresent())) {
+    public static void handle(MoveCommandMessage msg, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer sender)) {
                 return;
             }
 
-            if (sender != null) {
-                sender.getCapability(CapabilityInputState.INPUT_STATE).ifPresent((state) -> {
-                    EnumSet<InputCommand> old = state.getCommands().clone();
-
-                    state.getCommands().clear();
-                    state.getCommands().addAll(EnumSetConverter.convertToEnumSet(InputCommand.class, msg.command));
-
-                    EnumSet<InputCommand> current = state.getCommands().clone();
-
-                    long currentTime = sender.level().getGameTime();
-                    current.forEach(c -> {
-                        if (!old.contains(c)) {
-                            state.getLastPressTimes().put(c, currentTime);
-                        }
-                    });
-
-                    InputCommandEvent.onInputChange(sender, state, old, current);
-
-                });
+            ItemStack stack = sender.getItemInHand(InteractionHand.MAIN_HAND);
+            if (stack.isEmpty()) {
+                return;
             }
+            if (ItemSlashBlade.getBladeState(stack) == null) {
+                return;
+            }
+
+            var state = sender.getData(CapabilityInputState.INPUT_STATE);
+            EnumSet<InputCommand> old = state.getCommands().clone();
+
+            state.getCommands().clear();
+            state.getCommands().addAll(EnumSetConverter.convertToEnumSet(InputCommand.class, msg.command()));
+
+            EnumSet<InputCommand> current = state.getCommands().clone();
+
+            long currentTime = sender.level().getGameTime();
+            current.forEach(c -> {
+                if (!old.contains(c)) {
+                    state.getLastPressTimes().put(c, currentTime);
+                }
+            });
+
+            InputCommandEvent.onInputChange(sender, state, old, current);
         });
-        ctx.get().setPacketHandled(true);
     }
 }

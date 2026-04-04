@@ -62,7 +62,7 @@ public class BladeFirstPersonRender {
         if (stack != null && stack.isEmpty()) {
             return;
         }
-        if (stack != null && !(stack.getCapability(ItemSlashBlade.BLADESTATE).isPresent())) {
+        if (stack != null && ItemSlashBlade.getBladeState(stack) == null) {
             return;
         }
 
@@ -79,7 +79,7 @@ public class BladeFirstPersonRender {
             matrixStack.mulPose(Axis.XP.rotationDegrees(-mc.player.getXRot()));
 
             // layer.disableOffhandRendering();
-            float partialTicks = mc.getPartialTick();
+            float partialTicks = mc.getTimer().getGameTimeDeltaPartialTick(true);
             layer.render(matrixStack, bufferIn, combinedLightIn, mc.player, 0, 0, partialTicks, 0, 0, 0);
         }
     }

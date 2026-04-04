@@ -1,29 +1,29 @@
 package mods.flammpfeil.slashblade.event.drop;
-
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.SlashBladeConfig;
 import mods.flammpfeil.slashblade.entity.BladeItemEntity;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
+import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.Objects;
 
-@Mod.EventBusSubscriber
+@EventBusSubscriber(modid = "slashblade")
 public class EntityDropEvent {
     @SubscribeEvent
     public static void dropBlade(LivingDropsEvent event) {
         LivingEntity entity = event.getEntity();
         var bladeRegistry = SlashBlade.getSlashBladeDefinitionRegistry(entity.level());
         entity.level().registryAccess().registryOrThrow(EntityDropEntry.REGISTRY_KEY).forEach(entry -> {
-            if (!ForgeRegistries.ENTITY_TYPES.containsKey(entry.entityType())) {
+            if (!net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.containsKey(entry.entityType())) {
                 return;
             }
             if (!bladeRegistry.containsKey(entry.bladeName())) {
@@ -41,14 +41,14 @@ public class EntityDropEvent {
                 }
             }
 
-            float resultRate = Math.min(1F, entry.dropRate() + event.getLootingLevel() * 0.1F);
+            float resultRate = Math.min(1F, entry.dropRate() + EnchantmentCompat.getLevel(attacker, Enchantments.LOOTING) * 0.1F);
 
             if (entry.dropFixedPoint()) {
-                dropBlade(entity, ForgeRegistries.ENTITY_TYPES.getValue(entry.entityType()),
+                dropBlade(entity, net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(entry.entityType()),
                         Objects.requireNonNull(bladeRegistry.get(entry.bladeName())).getBlade(), resultRate, entry.dropPoint().x,
                         entry.dropPoint().y, entry.dropPoint().z);
             } else {
-                dropBlade(entity, ForgeRegistries.ENTITY_TYPES.getValue(entry.entityType()),
+                dropBlade(entity, net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(entry.entityType()),
                         Objects.requireNonNull(bladeRegistry.get(entry.bladeName())).getBlade(), resultRate, entity.getX(), entity.getY(),
                         entity.getZ());
             }
@@ -76,7 +76,7 @@ public class EntityDropEvent {
 
             e.setAirSupply(-1);
 
-            e.setThrower(entity.getUUID());
+            // TODO(neoforge-1.21.1): Restore BladeItemEntity ownership metadata if 1.21.1 gameplay still depends on it.
 
             entity.level().addFreshEntity(e);
         }

@@ -1,56 +1,49 @@
 package mods.flammpfeil.slashblade.recipe;
 
-import com.google.gson.JsonObject;
-import net.minecraft.network.FriendlyByteBuf;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Optional;
 import java.util.function.BiFunction;
 
-public record SlashBladeShapedRecipeSerializer<T extends Recipe<?>, U extends T>(RecipeSerializer<T> compose,
-                                                                                 BiFunction<T, @Nullable ResourceLocation, U> converter) implements RecipeSerializer<U> {
+public record SlashBladeShapedRecipeSerializer<T extends Recipe<?>, U extends T>(
+        RecipeSerializer<T> compose,
+        BiFunction<T, @Nullable ResourceLocation, U> converter
+) implements RecipeSerializer<U> {
     @Override
-    @NotNull
-    public U fromJson(@NotNull ResourceLocation id, @NotNull JsonObject json) {
-        if (!json.has("result")) {
-            JsonObject object = new JsonObject();
-            object.addProperty("item", "slashblade:slashblade");
-            json.add("result", object);
-        }
-        T recipe = compose().fromJson(id, json);
-        if (json.has("blade")) {
-            ResourceLocation output = new ResourceLocation(GsonHelper.getAsString(json, "blade"));
-            return converter().apply(recipe, output);
-        }
-        return converter().apply(recipe,
-                new ResourceLocation(GsonHelper.getAsString(json.getAsJsonObject("result"), "item")));
+    public @NotNull MapCodec<U> codec() {
+        return RecordCodecBuilder.mapCodec(instance -> instance.group(
+                compose().codec().forGetter(recipe -> (T) recipe),
+                ResourceLocation.CODEC.optionalFieldOf("blade").forGetter(recipe -> {
+                    if (recipe instanceof SlashBladeShapedRecipe bladeRecipe) {
+                        return Optional.ofNullable(bladeRecipe.getOutputBlade());
+                    }
+                    return Optional.empty();
+                })
+        ).apply(instance, (recipe, blade) -> converter().apply(recipe, blade.orElse(null))));
     }
 
     @Override
-    @NotNull
-    public U fromNetwork(@NotNull ResourceLocation id, @NotNull FriendlyByteBuf buf) {
-        T recipe = compose().fromNetwork(id, buf);
-        if (buf.readBoolean()) {
-            return converter().apply(recipe, buf.readResourceLocation());
-        }
-        return converter().apply(recipe, null);
-    }
-
-    @Override
-    public void toNetwork(@NotNull FriendlyByteBuf buf, @NotNull U recipe) {
-        compose().toNetwork(buf, recipe);
-        if (recipe instanceof SlashBladeShapedRecipe bladeRecipe) {
-            boolean hasName = bladeRecipe.getOutputBlade() != null;
-            buf.writeBoolean(hasName);
-            if (hasName) {
-                buf.writeResourceLocation(bladeRecipe.getOutputBlade());
-            }
-        } else {
-            buf.writeBoolean(false);
-        }
+    public @NotNull StreamCodec<RegistryFriendlyByteBuf, U> streamCodec() {
+        return StreamCodec.composite(
+                compose().streamCodec(),
+                recipe -> (T) recipe,
+                ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC),
+                recipe -> {
+                    if (recipe instanceof SlashBladeShapedRecipe bladeRecipe) {
+                        return Optional.ofNullable(bladeRecipe.getOutputBlade());
+                    }
+                    return Optional.empty();
+                },
+                (recipe, blade) -> converter().apply(recipe, blade.orElse(null))
+        );
     }
 }

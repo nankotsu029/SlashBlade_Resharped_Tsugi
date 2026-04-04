@@ -24,12 +24,10 @@ public class BladeItemEntityRenderer extends ItemEntityRenderer {
         super(context);
     }
 
-    @Override
     public boolean shouldSpreadItems() {
         return false;
     }
 
-    @Override
     public boolean shouldBob() {
         return false;
     }
@@ -57,11 +55,11 @@ public class BladeItemEntityRenderer extends ItemEntityRenderer {
 
                 EnumSet<SwordType> types = SwordType.from(current);
                 itemIn.getPersistentData();
-                ResourceLocation modelLocation = current.getCapability(ItemSlashBlade.BLADESTATE)
-                        .map((state) -> state.getModel().orElseGet(bladeItem::getModel)).orElseGet(bladeItem::getModel);
-                ResourceLocation textureLocation = current.getCapability(ItemSlashBlade.BLADESTATE)
-                        .map((state) -> state.getTexture().orElseGet(bladeItem::getTexture))
-                        .orElseGet(bladeItem::getTexture);
+                var bsItem = ItemSlashBlade.getBladeState(current);
+                ResourceLocation modelLocation = (bsItem != null && bsItem.getModel().isPresent())
+                        ? bsItem.getModel().get() : bladeItem.getModel();
+                ResourceLocation textureLocation = (bsItem != null && bsItem.getTexture().isPresent())
+                        ? bsItem.getTexture().get() : bladeItem.getTexture();
 
                 WavefrontObject model = BladeModelManager.getInstance().getModel(modelLocation);
 

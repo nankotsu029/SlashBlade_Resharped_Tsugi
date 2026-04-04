@@ -1,5 +1,6 @@
 package mods.flammpfeil.slashblade.client.renderer.layers;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import dev.kosmx.playerAnim.api.TransformType;
@@ -10,8 +11,7 @@ import jp.nyatla.nymmd.MmdMotionPlayerGL2;
 import jp.nyatla.nymmd.MmdPmdModelMc;
 import jp.nyatla.nymmd.MmdVmdMotionMc;
 import mods.flammpfeil.slashblade.SlashBlade;
-import mods.flammpfeil.slashblade.capability.slashblade.CapabilitySlashBlade;
-import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
+import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.client.renderer.model.BladeModelManager;
 import mods.flammpfeil.slashblade.client.renderer.model.BladeMotionManager;
 import mods.flammpfeil.slashblade.client.renderer.model.obj.WavefrontObject;
@@ -38,7 +38,6 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -52,28 +51,41 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
         super(entityRendererIn);
     }
 
-    final LazyOptional<MmdPmdModelMc> bladeholder = LazyOptional.of(() -> {
-        try {
-            return new MmdPmdModelMc(new ResourceLocation(SlashBlade.MODID, "model/bladeholder.pmd"));
-        } catch (IOException | MmdException e) {
-            SlashBlade.LOGGER.warn(e);
-        }
-        return null;
-    });
+    private MmdPmdModelMc bladeholder;
+    private boolean bladeholderInitialized;
+    private MmdMotionPlayerGL2 motionPlayer;
+    private boolean motionPlayerInitialized;
 
-    final LazyOptional<MmdMotionPlayerGL2> motionPlayer = LazyOptional.of(() -> {
-        MmdMotionPlayerGL2 mmp = new MmdMotionPlayerGL2();
-
-        bladeholder.ifPresent(pmd -> {
+    private MmdPmdModelMc getBladeholder() {
+        if (!bladeholderInitialized) {
+            bladeholderInitialized = true;
             try {
-                mmp.setPmd(pmd);
-            } catch (MmdException e) {
+                bladeholder = new MmdPmdModelMc(
+                        ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID, "model/bladeholder.pmd"));
+            } catch (IOException | MmdException e) {
                 SlashBlade.LOGGER.warn(e);
+                bladeholder = null;
             }
-        });
+        }
+        return bladeholder;
+    }
 
-        return mmp;
-    });
+    private MmdMotionPlayerGL2 getMotionPlayer() {
+        if (!motionPlayerInitialized) {
+            motionPlayerInitialized = true;
+            MmdMotionPlayerGL2 player = new MmdMotionPlayerGL2();
+            MmdPmdModelMc pmd = getBladeholder();
+            if (pmd != null) {
+                try {
+                    player.setPmd(pmd);
+                } catch (MmdException e) {
+                    SlashBlade.LOGGER.warn(e);
+                }
+            }
+            motionPlayer = player;
+        }
+        return motionPlayer;
+    }
 
     public float modifiedSpeed(float baseSpeed, LivingEntity entity) {
         float modif = 6.0f;
@@ -91,7 +103,7 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
     public void renderOffhandItem(PoseStack matrixStack, MultiBufferSource bufferIn, int lightIn, T entity) {
 
         ItemStack offhandStack = entity.getItemInHand(InteractionHand.OFF_HAND);
-        if (offhandStack.isEmpty() || !offhandStack.getCapability(CapabilitySlashBlade.BLADESTATE).isPresent()) {
+        if (offhandStack.isEmpty() || ItemSlashBlade.getBladeState(offhandStack) == null) {
             renderHotbarItem(matrixStack, bufferIn, lightIn, entity);
             return;
         }
@@ -115,8 +127,8 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
     }
 
     public void renderStandbyBlade(PoseStack matrixStack, MultiBufferSource bufferIn, int lightIn, ItemStack blade, T entity) {
-        LazyOptional<ISlashBladeState> state = blade.getCapability(CapabilitySlashBlade.BLADESTATE);
-        state.ifPresent(s -> {
+        var s = ItemSlashBlade.getBladeState(blade);
+        if (s != null) {
             double modelScaleBase = 0.0078125F; // 0.5^7
             double motionScale = 1.5 / 12.0;
             ResourceLocation textureLocation = s.getTexture().orElse(DefaultResources.resourceDefaultTexture);
@@ -193,7 +205,7 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
                             matrixStack, bufferIn, lightIn);
                 }
             }
-        });
+        }
     }
 
     @Override
@@ -216,10 +228,11 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
             return;
         }
 
-        LazyOptional<ISlashBladeState> state = stack.getCapability(CapabilitySlashBlade.BLADESTATE);
-        state.ifPresent(s -> motionPlayer.ifPresent(mmp -> {
-            ComboState combo = ComboStateRegistry.REGISTRY.get().getValue(s.getComboSeq()) != null
-                    ? ComboStateRegistry.REGISTRY.get().getValue(s.getComboSeq())
+        var s = ItemSlashBlade.getBladeState(stack);
+        MmdMotionPlayerGL2 mmp = getMotionPlayer();
+        if (s != null && mmp != null) {
+            ComboState combo = ComboStateRegistry.REGISTRY.get(s.getComboSeq()) != null
+                    ? ComboStateRegistry.REGISTRY.get(s.getComboSeq())
                     : ComboStateRegistry.NONE.get();
             // tick to msec
             double time = TimeValueHelper.getMSecFromTicks(
@@ -228,13 +241,13 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
             while (combo != ComboStateRegistry.NONE.get() && combo != null && combo.getTimeoutMS() < time) {
                 time -= combo.getTimeoutMS();
 
-                combo = ComboStateRegistry.REGISTRY.get().getValue(combo.getNextOfTimeout(entity)) != null
-                        ? ComboStateRegistry.REGISTRY.get().getValue(combo.getNextOfTimeout(entity))
+                combo = ComboStateRegistry.REGISTRY.get(combo.getNextOfTimeout(entity)) != null
+                        ? ComboStateRegistry.REGISTRY.get(combo.getNextOfTimeout(entity))
                         : ComboStateRegistry.NONE.get();
             }
             if (combo == ComboStateRegistry.NONE.get()) {
-                combo = ComboStateRegistry.REGISTRY.get().getValue(s.getComboRoot()) != null
-                        ? ComboStateRegistry.REGISTRY.get().getValue(s.getComboRoot())
+                combo = ComboStateRegistry.REGISTRY.get(s.getComboRoot()) != null
+                        ? ComboStateRegistry.REGISTRY.get(s.getComboRoot())
                         : ComboStateRegistry.STANDBY.get();
             }
 
@@ -352,7 +365,7 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
                     if (s.isCharged(entity)) {
                         float f = (float) entity.tickCount + partialTicks;
                         BladeRenderState.renderChargeEffect(stack, f, obj, "effect",
-                                new ResourceLocation("textures/entity/creeper/creeper_armor.png"), matrixStack,
+                                ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper_armor.png"), matrixStack,
                                 bufferIn, lightIn);
                     }
 
@@ -360,7 +373,7 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
 
             }
 
-        }));
+        }
     }
 
     public void setUserPose(PoseStack matrixStack, T entity, float partialTicks) {

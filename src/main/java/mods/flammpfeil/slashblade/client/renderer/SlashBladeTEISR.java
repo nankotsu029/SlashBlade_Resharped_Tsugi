@@ -15,12 +15,12 @@ import mods.flammpfeil.slashblade.item.ItemSlashBladeDetune;
 import mods.flammpfeil.slashblade.item.SwordType;
 import mods.flammpfeil.slashblade.registry.SlashBladeItems;
 import mods.flammpfeil.slashblade.registry.slashblade.SlashBladeDefinition;
+import mods.flammpfeil.slashblade.util.ItemStackDataCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
@@ -142,13 +142,12 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
 
         EnumSet<SwordType> types = SwordType.from(stack);
 
-        ResourceLocation modelLocation = stack.getCapability(ItemSlashBlade.BLADESTATE)
-                .filter(s -> s.getModel().isPresent()).map(s -> s.getModel().orElseGet(() -> stackDefaultModel(stack)))
-                .orElseGet(() -> stackDefaultModel(stack));
+        var bladeStateR = ItemSlashBlade.getBladeState(stack);
+        ResourceLocation modelLocation = (bladeStateR != null && bladeStateR.getModel().isPresent())
+                ? bladeStateR.getModel().get() : stackDefaultModel(stack);
         WavefrontObject model = BladeModelManager.getInstance().getModel(modelLocation);
-        ResourceLocation textureLocation = stack.getCapability(ItemSlashBlade.BLADESTATE)
-                .filter(s -> s.getTexture().isPresent()).map(s -> s.getTexture().orElseGet(() -> stackDefaultTexture(stack)))
-                .orElseGet(() -> stackDefaultTexture(stack));
+        ResourceLocation textureLocation = (bladeStateR != null && bladeStateR.getTexture().isPresent())
+                ? bladeStateR.getTexture().get() : stackDefaultTexture(stack);
 
         String renderTarget;
         if (types.contains(SwordType.BROKEN)) {
@@ -191,20 +190,13 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
     }
 
     public ResourceLocation stackDefaultModel(ItemStack stack) {
-        CompoundTag tag = stack.getOrCreateTag();
-        if (!tag.contains("bladeState")) {
-            return DefaultResources.resourceDefaultModel;
-        }
-        CompoundTag stateTag = stack.getTagElement("bladeState");
+        var bladeState = ItemSlashBlade.getBladeState(stack);
         String name = null;
-        if (stateTag != null) {
-            name = stateTag.getString("ModelName");
+        if (bladeState != null && bladeState.getModel().isPresent()) {
+            name = bladeState.getModel().get().toString();
         }
         if (!(stack.getItem() instanceof ItemSlashBladeDetune)) {
-            String key = null;
-            if (stateTag != null) {
-                key = stateTag.getString("translationKey");
-            }
+            String key = bladeState != null ? bladeState.getTranslationKey() : null;
             if (key != null && !key.isBlank()) {
                 ResourceLocation bladeName =
                         ResourceLocation.tryParse(key.substring(5).replaceFirst(Pattern.quote("."), Matcher.quoteReplacement(":")));
@@ -223,20 +215,13 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
     }
 
     public ResourceLocation stackDefaultTexture(ItemStack stack) {
-        CompoundTag tag = stack.getOrCreateTag();
-        if (!tag.contains("bladeState")) {
-            return DefaultResources.resourceDefaultTexture;
-        }
-        CompoundTag stateTag = stack.getTagElement("bladeState");
+        var bladeState = ItemSlashBlade.getBladeState(stack);
         String name = null;
-        if (stateTag != null) {
-            name = stateTag.getString("TextureName");
+        if (bladeState != null && bladeState.getTexture().isPresent()) {
+            name = bladeState.getTexture().get().toString();
         }
         if (!(stack.getItem() instanceof ItemSlashBladeDetune)) {
-            String key = null;
-            if (stateTag != null) {
-                key = stateTag.getString("translationKey");
-            }
+            String key = bladeState != null ? bladeState.getTranslationKey() : null;
             if (key != null && !key.isBlank()) {
                 ResourceLocation bladeName =
                         ResourceLocation.tryParse(key.substring(5).replaceFirst(Pattern.quote("."), Matcher.quoteReplacement(":")));
@@ -263,13 +248,12 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
         EnumSet<SwordType> types = SwordType.from(stack);
         // BladeModel.itemBlade.getModelLocation(itemStackIn)
 
-        ResourceLocation modelLocation = stack.getCapability(ItemSlashBlade.BLADESTATE)
-                .filter(s -> s.getModel().isPresent()).map(s -> s.getModel().orElseGet(() -> stackDefaultModel(stack)))
-                .orElseGet(() -> stackDefaultModel(stack));
+        var bladeStateM = ItemSlashBlade.getBladeState(stack);
+        ResourceLocation modelLocation = (bladeStateM != null && bladeStateM.getModel().isPresent())
+                ? bladeStateM.getModel().get() : stackDefaultModel(stack);
         WavefrontObject model = BladeModelManager.getInstance().getModel(modelLocation);
-        ResourceLocation textureLocation = stack.getCapability(ItemSlashBlade.BLADESTATE)
-                .filter(s -> s.getTexture().isPresent()).map(s -> s.getTexture().orElseGet(() -> stackDefaultTexture(stack)))
-                .orElseGet(() -> stackDefaultTexture(stack));
+        ResourceLocation textureLocation = (bladeStateM != null && bladeStateM.getTexture().isPresent())
+                ? bladeStateM.getTexture().get() : stackDefaultTexture(stack);
 
         Vec3 bladeOffset = Vec3.ZERO;
         float bladeOffsetRot = 0;

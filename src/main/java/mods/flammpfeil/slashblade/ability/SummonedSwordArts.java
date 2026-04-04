@@ -25,8 +25,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.bus.api.SubscribeEvent;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -46,19 +46,14 @@ public class SummonedSwordArts {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
-    public static final ResourceLocation ADVANCEMENT_SUMMONEDSWORDS = new ResourceLocation(SlashBlade.MODID,
-            "arts/shooting/summonedswords");
-    public static final ResourceLocation ADVANCEMENT_SPIRAL_SWORDS = new ResourceLocation(SlashBlade.MODID,
-            "arts/shooting/spiral_swords");
-    public static final ResourceLocation ADVANCEMENT_STORM_SWORDS = new ResourceLocation(SlashBlade.MODID,
-            "arts/shooting/storm_swords");
-    public static final ResourceLocation ADVANCEMENT_BLISTERING_SWORDS = new ResourceLocation(SlashBlade.MODID,
-            "arts/shooting/blistering_swords");
-    public static final ResourceLocation ADVANCEMENT_HEAVY_RAIN_SWORDS = new ResourceLocation(SlashBlade.MODID,
-            "arts/shooting/heavy_rain_swords");
+    public static final ResourceLocation ADVANCEMENT_SUMMONEDSWORDS = SlashBlade.prefix("arts/shooting/summonedswords");
+    public static final ResourceLocation ADVANCEMENT_SPIRAL_SWORDS = SlashBlade.prefix("arts/shooting/spiral_swords");
+    public static final ResourceLocation ADVANCEMENT_STORM_SWORDS = SlashBlade.prefix("arts/shooting/storm_swords");
+    public static final ResourceLocation ADVANCEMENT_BLISTERING_SWORDS = SlashBlade.prefix("arts/shooting/blistering_swords");
+    public static final ResourceLocation ADVANCEMENT_HEAVY_RAIN_SWORDS = SlashBlade.prefix("arts/shooting/heavy_rain_swords");
 
     @SubscribeEvent
     public void onInputChange(InputCommandEvent event) {
@@ -68,21 +63,22 @@ public class SummonedSwordArts {
         ServerPlayer sender = event.getEntity();
 
         ItemStack blade = sender.getMainHandItem();
-        var bladeState = blade.getCapability(ItemSlashBlade.BLADESTATE).orElse(new SlashBladeState(blade));
+        SlashBladeState bladeState = ItemSlashBlade.getBladeState(blade);
+        if (bladeState == null) {
+            bladeState = new SlashBladeState();
+        }
 
         if (bladeState.isBroken() || bladeState.isSealed()
                 || !SwordType.from(blade).contains(SwordType.BEWITCHED)) {
             return;
         }
 
-        int powerLevel = blade
-                .getEnchantmentLevel(Enchantments.POWER_ARROWS);
+        int powerLevel = EnchantmentCompat.getLevel(blade, sender, Enchantments.POWER);
         if (powerLevel <= 0) {
             return;
         }
 
         InputCommand targetCommnad = InputCommand.M_DOWN;
-
 
         boolean onDown = !old.contains(targetCommnad) && current.contains(targetCommnad);
 
@@ -91,23 +87,21 @@ public class SummonedSwordArts {
         // basic summoned swords
         if (onDown) {
 
-            sender.getCapability(CapabilityInputState.INPUT_STATE).ifPresent(input -> {
+            var input = sender.getData(CapabilityInputState.INPUT_STATE);
 
-                // SpiralSwords command
-                input.getScheduler().schedule("SpiralSwords", pressTime + 10, (rawEntity, queue, now) -> performSpiralSwords(powerLevel, pressTime, rawEntity));
+            // SpiralSwords command
+            input.getScheduler().schedule("SpiralSwords", pressTime + 10, (rawEntity, queue, now) -> performSpiralSwords(powerLevel, pressTime, rawEntity));
 
-                // StormSwords command
-                input.getScheduler().schedule("StormSwords", pressTime + 10, (rawEntity, queue, now) -> performStormSwords(powerLevel, pressTime, rawEntity));
+            // StormSwords command
+            input.getScheduler().schedule("StormSwords", pressTime + 10, (rawEntity, queue, now) -> performStormSwords(powerLevel, pressTime, rawEntity));
 
-                // BlisteringSwords command
-                input.getScheduler().schedule("BlisteringSwords", pressTime + 10, (rawEntity, queue, now) -> performBlisteringSwords(powerLevel, pressTime, rawEntity, now));
+            // BlisteringSwords command
+            input.getScheduler().schedule("BlisteringSwords", pressTime + 10, (rawEntity, queue, now) -> performBlisteringSwords(powerLevel, pressTime, rawEntity, now));
 
-                input.getScheduler().schedule("HeavyRainSwords", pressTime + 10, (rawEntity, queue, now) -> performHeavyRains(powerLevel, pressTime, rawEntity, now));
+            input.getScheduler().schedule("HeavyRainSwords", pressTime + 10, (rawEntity, queue, now) -> performHeavyRains(powerLevel, pressTime, rawEntity, now));
 
-            });
-
-            blade.getCapability(ItemSlashBlade.BLADESTATE).ifPresent((state) -> {
-
+            SlashBladeState state = ItemSlashBlade.getBladeState(blade);
+            if (state != null) {
                 if (state.getProudSoulCount() < SlashBladeConfig.SUMMON_SWORD_COST.get()) {
                     return;
                 }
@@ -139,14 +133,13 @@ public class SummonedSwordArts {
                 ss.setDamage(powerLevel);
                 Vec3 dir = targetPos.subtract(pos).normalize();
                 ss.shoot(dir.x, dir.y, dir.z, 3.0f, 0.0f);
-                // ss.setDamage(counter);
                 ss.setOwner(sender);
                 ss.setColor(state.getColorCode());
                 ss.setRoll(sender.getRandom().nextFloat() * 360.0f);
                 worldIn.addFreshEntity(ss);
 
                 sender.playNotifySound(SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 0.2F, 1.45F);
-            });
+            }
         }
     }
 
@@ -189,12 +182,11 @@ public class SummonedSwordArts {
         }
 
         InputCommand targetCommnad = InputCommand.M_DOWN;
-        boolean inputSucceed = entity.getCapability(CapabilityInputState.INPUT_STATE)
-                .filter(input -> input.getCommands().contains(targetCommnad)
-                        && (!InputCommand.anyMatch(input.getCommands(), InputCommand.move)
-                        || !input.getCommands().contains(InputCommand.SNEAK))
-                        && input.getLastPressTime(targetCommnad) == pressTime)
-                .isPresent();
+        var input = entity.getData(CapabilityInputState.INPUT_STATE);
+        boolean inputSucceed = input.getCommands().contains(targetCommnad)
+                && (!InputCommand.anyMatch(input.getCommands(), InputCommand.move)
+                || !input.getCommands().contains(InputCommand.SNEAK))
+                && input.getLastPressTime(targetCommnad) == pressTime;
 
         if (!inputSucceed) {
             return;
@@ -212,8 +204,8 @@ public class SummonedSwordArts {
             list.forEach(e -> ((EntitySpiralSwords) e).doFire());
         } else {
             // summon
-            entity.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).ifPresent((state) -> {
-
+            SlashBladeState state = ItemSlashBlade.getBladeState(entity.getMainHandItem());
+            if (state != null) {
                 if (state.getProudSoulCount() < SlashBladeConfig.SUMMON_SWORD_ART_COST.get()) {
                     return;
                 }
@@ -225,8 +217,8 @@ public class SummonedSwordArts {
 
                 Level worldIn = entity.level();
 
-                int rank = entity.getCapability(CapabilityConcentrationRank.RANK_POINT)
-                        .map(r -> r.getRank(worldIn.getGameTime()).level).orElse(0);
+                int rank = entity.getData(CapabilityConcentrationRank.RANK_POINT)
+                        .getRank(worldIn.getGameTime()).level;
 
                 int count = 6;
 
@@ -252,7 +244,7 @@ public class SummonedSwordArts {
                     entity.playNotifySound(SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 0.2F,
                             1.45F);
                 }
-            });
+            }
         }
     }
 
@@ -262,20 +254,19 @@ public class SummonedSwordArts {
         }
 
         InputCommand targetCommnad = InputCommand.M_DOWN;
-        boolean inputSucceed = entity.getCapability(CapabilityInputState.INPUT_STATE)
-                .filter(input -> input.getCommands().contains(targetCommnad)
-                        && input.getCommands().contains(InputCommand.SNEAK)
-                        && input.getCommands().contains(InputCommand.BACK)
-                        && !input.getCommands().contains(InputCommand.FORWARD)
-                        && input.getLastPressTime(targetCommnad) == pressTime)
-                .isPresent();
+        var input = entity.getData(CapabilityInputState.INPUT_STATE);
+        boolean inputSucceed = input.getCommands().contains(targetCommnad)
+                && input.getCommands().contains(InputCommand.SNEAK)
+                && input.getCommands().contains(InputCommand.BACK)
+                && !input.getCommands().contains(InputCommand.FORWARD)
+                && input.getLastPressTime(targetCommnad) == pressTime;
         if (!inputSucceed) {
             return;
         }
 
         // summon
-        entity.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).ifPresent((state) -> {
-
+        SlashBladeState state = ItemSlashBlade.getBladeState(entity.getMainHandItem());
+        if (state != null) {
             Level worldIn = entity.level();
             Entity target = state.getTargetEntity(worldIn);
 
@@ -290,8 +281,8 @@ public class SummonedSwordArts {
             //烈风环影剑
             AdvancementHelper.grantCriterion(entity, ADVANCEMENT_STORM_SWORDS);
 
-            int rank = entity.getCapability(CapabilityConcentrationRank.RANK_POINT)
-                    .map(r -> r.getRank(worldIn.getGameTime()).level).orElse(0);
+            int rank = entity.getData(CapabilityConcentrationRank.RANK_POINT)
+                    .getRank(worldIn.getGameTime()).level;
 
             int count = 6;
 
@@ -316,7 +307,7 @@ public class SummonedSwordArts {
                 entity.playNotifySound(SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 0.2F,
                         1.45F);
             }
-        });
+        }
     }
 
     private void performBlisteringSwords(int powerLevel, final Long pressTime, LivingEntity rawEntity, long now) {
@@ -325,20 +316,19 @@ public class SummonedSwordArts {
         }
 
         InputCommand targetCommnad = InputCommand.M_DOWN;
-        boolean inputSucceed = entity.getCapability(CapabilityInputState.INPUT_STATE)
-                .filter(input -> input.getCommands().contains(targetCommnad)
-                        && input.getCommands().contains(InputCommand.SNEAK)
-                        && input.getCommands().contains(InputCommand.FORWARD)
-                        && input.getLastPressTime(InputCommand.BACK) + 20 < now
-                        && input.getLastPressTime(targetCommnad) == pressTime)
-                .isPresent();
+        var input = entity.getData(CapabilityInputState.INPUT_STATE);
+        boolean inputSucceed = input.getCommands().contains(targetCommnad)
+                && input.getCommands().contains(InputCommand.SNEAK)
+                && input.getCommands().contains(InputCommand.FORWARD)
+                && input.getLastPressTime(InputCommand.BACK) + 20 < now
+                && input.getLastPressTime(targetCommnad) == pressTime;
         if (!inputSucceed) {
             return;
         }
 
         // summon
-        entity.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).ifPresent((state) -> {
-
+        SlashBladeState state = ItemSlashBlade.getBladeState(entity.getMainHandItem());
+        if (state != null) {
             Level worldIn = entity.level();
 
             if (state.getProudSoulCount() < SlashBladeConfig.SUMMON_SWORD_ART_COST.get()) {
@@ -349,8 +339,8 @@ public class SummonedSwordArts {
             //急袭幻影剑
             AdvancementHelper.grantCriterion(entity, ADVANCEMENT_BLISTERING_SWORDS);
 
-            int rank = entity.getCapability(CapabilityConcentrationRank.RANK_POINT)
-                    .map(r -> r.getRank(worldIn.getGameTime()).level).orElse(0);
+            int rank = entity.getData(CapabilityConcentrationRank.RANK_POINT)
+                    .getRank(worldIn.getGameTime()).level;
 
             int count = 6;
 
@@ -377,7 +367,7 @@ public class SummonedSwordArts {
                 entity.playNotifySound(SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 0.2F,
                         1.45F);
             }
-        });
+        }
     }
 
     private void performHeavyRains(int powerLevel, final Long pressTime, LivingEntity rawEntity, long now) {
@@ -386,20 +376,19 @@ public class SummonedSwordArts {
         }
 
         InputCommand targetCommnad = InputCommand.M_DOWN;
-        boolean inputSucceed = entity.getCapability(CapabilityInputState.INPUT_STATE)
-                .filter(input -> input.getCommands().contains(targetCommnad)
-                        && input.getCommands().contains(InputCommand.SNEAK)
-                        && input.getCommands().contains(InputCommand.FORWARD)
-                        && input.getLastPressTime(InputCommand.BACK) + 30 > now
-                        && input.getLastPressTime(targetCommnad) == pressTime)
-                .isPresent();
+        var input = entity.getData(CapabilityInputState.INPUT_STATE);
+        boolean inputSucceed = input.getCommands().contains(targetCommnad)
+                && input.getCommands().contains(InputCommand.SNEAK)
+                && input.getCommands().contains(InputCommand.FORWARD)
+                && input.getLastPressTime(InputCommand.BACK) + 30 > now
+                && input.getLastPressTime(targetCommnad) == pressTime;
         if (!inputSucceed) {
             return;
         }
 
         // summon
-        entity.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).ifPresent((state) -> {
-
+        SlashBladeState state = ItemSlashBlade.getBladeState(entity.getMainHandItem());
+        if (state != null) {
             Level worldIn = entity.level();
             Entity target = state.getTargetEntity(worldIn);
             if (state.getProudSoulCount() < SlashBladeConfig.SUMMON_SWORD_ART_COST.get()) {
@@ -411,8 +400,8 @@ public class SummonedSwordArts {
             //五月雨
             AdvancementHelper.grantCriterion(entity, ADVANCEMENT_HEAVY_RAIN_SWORDS);
 
-            int rank = entity.getCapability(CapabilityConcentrationRank.RANK_POINT)
-                    .map(r -> r.getRank(worldIn.getGameTime()).level).orElse(0);
+            int rank = entity.getData(CapabilityConcentrationRank.RANK_POINT)
+                    .getRank(worldIn.getGameTime()).level;
 
             Vec3 basePos;
 
@@ -472,6 +461,6 @@ public class SummonedSwordArts {
                             1.45F);
                 }
             }
-        });
+        }
     }
 }

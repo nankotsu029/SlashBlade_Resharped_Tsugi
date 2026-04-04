@@ -4,6 +4,7 @@ import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
 import mods.flammpfeil.slashblade.registry.combo.ComboState;
 import mods.flammpfeil.slashblade.util.AdvancementHelper;
+import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -12,14 +13,14 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.ForgeMod;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.living.LivingFallEvent;
-import net.minecraftforge.event.entity.player.PlayerFlyableFallEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.living.LivingFallEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerFlyableFallEvent;
+import net.neoforged.bus.api.SubscribeEvent;
 
 public class FallHandler {
     private static final class SingletonHolder {
@@ -34,7 +35,7 @@ public class FallHandler {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
     @SubscribeEvent
@@ -48,17 +49,17 @@ public class FallHandler {
     }
 
     public static void resetState(LivingEntity user) {
-        user.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).ifPresent((state) -> {
+        var state = ItemSlashBlade.getBladeState(user.getMainHandItem());
+        if (state != null) {
             state.setFallDecreaseRate(0);
 
-            ComboState combo = ComboStateRegistry.REGISTRY.get().getValue(state.getComboSeq()) != null
-                    ? ComboStateRegistry.REGISTRY.get().getValue(state.getComboSeq())
+            ComboState combo = ComboStateRegistry.REGISTRY.get(state.getComboSeq()) != null
+                    ? ComboStateRegistry.REGISTRY.get(state.getComboSeq())
                     : ComboStateRegistry.NONE.get();
             if (combo != null && combo.isAerial()) {
                 state.setComboSeq(combo.getNextOfTimeout(user));
             }
-        });
-
+        }
     }
 
     public static void spawnLandingParticle(LivingEntity user, float fallFactor) {
@@ -106,25 +107,26 @@ public class FallHandler {
         if (!user.isNoGravity() && !user.onGround()) {
             user.fallDistance = 1;
 
-            float currentRatio = user.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE).map((state) -> {
-                float decRatio = state.getFallDecreaseRate();
-
-                float newDecRatio = decRatio + 0.05f;
-                newDecRatio = Math.min(1.0f, newDecRatio);
-                state.setFallDecreaseRate(newDecRatio);
-
-                return decRatio;
-            }).orElse(1.0f);
+            var fallState = ItemSlashBlade.getBladeState(user.getMainHandItem());
+            float currentRatio;
+            if (fallState != null) {
+                float decRatio = fallState.getFallDecreaseRate();
+                float newDecRatio = Math.min(1.0f, decRatio + 0.05f);
+                fallState.setFallDecreaseRate(newDecRatio);
+                currentRatio = decRatio;
+            } else {
+                currentRatio = 1.0f;
+            }
 
             double gravityReductionFactor = 0.85f;
 
-            int level = user.getMainHandItem().getEnchantmentLevel(Enchantments.FALL_PROTECTION);
+            int level = EnchantmentCompat.getLevel(user.getMainHandItem(), user, Enchantments.FEATHER_FALLING);
             if (level > 0) {
                 gravityReductionFactor = Math.min(0.93, gravityReductionFactor + 0.02 * level);
-                AdvancementHelper.grantedIf(Enchantments.FALL_PROTECTION, user);
+                AdvancementHelper.grantedIf(Enchantments.FEATHER_FALLING, user);
             }
 
-            AttributeInstance gravity = user.getAttribute(ForgeMod.ENTITY_GRAVITY.get());
+            AttributeInstance gravity = user.getAttribute(Attributes.GRAVITY);
             double g = 0;
             if (gravity != null) {
                 g = gravity.getValue() * gravityReductionFactor;
@@ -142,7 +144,7 @@ public class FallHandler {
             user.fallDistance = 1;
 
             Vec3 motion = user.getDeltaMovement();
-            AttributeInstance gravity = user.getAttribute(ForgeMod.ENTITY_GRAVITY.get());
+            AttributeInstance gravity = user.getAttribute(Attributes.GRAVITY);
             double g = 0;
             if (gravity != null) {
                 g = gravity.getValue();

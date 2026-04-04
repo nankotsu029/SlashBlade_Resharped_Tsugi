@@ -1,14 +1,17 @@
 package mods.flammpfeil.slashblade.util;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
+// TODO(neoforge-1.21.1): Replace remaining ForgeRegistries references with BuiltInRegistries, Registries, or NeoForgeRegistries as appropriate.
+// TODO(neoforge-1.21.1): Replace ForgeRegistries.ENCHANTMENTS with a RegistryAccess/Registries.ENCHANTMENT lookup.
 import mods.flammpfeil.slashblade.SlashBlade;
-import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementProgress;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraftforge.registries.ForgeRegistries;
 
 public class AdvancementHelper {
 
@@ -36,9 +39,9 @@ public class AdvancementHelper {
 
     public static void grantCriterion(ServerPlayer player, ResourceLocation resourcelocation) {
         MinecraftServer server = player.getServer();
-        Advancement adv = null;
+        AdvancementHolder adv = null;
         if (server != null) {
-            adv = server.getAdvancements().getAdvancement(resourcelocation);
+            adv = server.getAdvancements().get(resourcelocation);
         }
         if (adv == null) {
             return;
@@ -56,15 +59,11 @@ public class AdvancementHelper {
 
     static final ResourceLocation EXEFFECT_ENCHANTMENT = SlashBlade.prefix("enchantment/");
 
-    static public void grantedIf(Enchantment enchantment, LivingEntity owner) {
-        int level = owner.getMainHandItem().getEnchantmentLevel(enchantment);
+    static public void grantedIf(ResourceKey<Enchantment> enchantment, LivingEntity owner) {
+        int level = EnchantmentCompat.getLevel(owner.getMainHandItem(), owner, enchantment);
         if (0 < level) {
             grantCriterion(owner, EXEFFECT_ENCHANTMENT.withSuffix("root"));
-            ResourceLocation enchantmentsKey = ForgeRegistries.ENCHANTMENTS.getKey(enchantment);
-            if (enchantmentsKey != null) {
-                grantCriterion(owner,
-                        EXEFFECT_ENCHANTMENT.withSuffix(enchantmentsKey.getPath()));
-            }
+            grantCriterion(owner, EXEFFECT_ENCHANTMENT.withSuffix(enchantment.location().getPath()));
         }
     }
 }

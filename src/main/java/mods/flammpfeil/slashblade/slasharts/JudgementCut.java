@@ -1,7 +1,7 @@
 package mods.flammpfeil.slashblade.slasharts;
 
 import mods.flammpfeil.slashblade.SlashBlade;
-import mods.flammpfeil.slashblade.capability.concentrationrank.ConcentrationRankCapabilityProvider;
+import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank;
 import mods.flammpfeil.slashblade.entity.EntityJudgementCut;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.util.RayTraceHelper;
@@ -38,8 +38,10 @@ public class JudgementCut {
         final double entityReach = 7;
 
         ItemStack stack = user.getMainHandItem();
-        Optional<Vec3> resultPos = stack.getCapability(ItemSlashBlade.BLADESTATE)
-                .filter(s -> s.getTargetEntity(worldIn) != null).map(s -> Objects.requireNonNull(s.getTargetEntity(worldIn)).getEyePosition(1.0f));
+        var bladeState = ItemSlashBlade.getBladeState(stack);
+        Optional<Vec3> resultPos = bladeState != null && bladeState.getTargetEntity(worldIn) != null
+                ? Optional.of(Objects.requireNonNull(bladeState.getTargetEntity(worldIn)).getEyePosition(1.0f))
+                : Optional.empty();
 
         if (resultPos.isEmpty()) {
             Optional<HitResult> raytraceresult = RayTraceHelper.rayTrace(worldIn, user, eyePos, user.getLookAngle(),
@@ -67,10 +69,11 @@ public class JudgementCut {
         EntityJudgementCut jc = new EntityJudgementCut(SlashBlade.RegistryEvents.JudgementCut, worldIn);
         jc.setPos(pos.x, pos.y, pos.z);
         jc.setOwner(user);
-        stack.getCapability(ItemSlashBlade.BLADESTATE).ifPresent((state) -> jc.setColor(state.getColorCode()));
+        if (bladeState != null) {
+            jc.setColor(bladeState.getColorCode());
+        }
 
-        user.getCapability(ConcentrationRankCapabilityProvider.RANK_POINT)
-                .ifPresent(rank -> jc.setRank(rank.getRankLevel(worldIn.getGameTime())));
+        jc.setRank(user.getData(CapabilityConcentrationRank.RANK_POINT).getRankLevel(worldIn.getGameTime()));
 
         worldIn.addFreshEntity(jc);
 
@@ -87,6 +90,7 @@ public class JudgementCut {
     public static void doJudgementCutSuper(LivingEntity owner, List<Entity> exclude) {
         Level level = owner.level();
         ItemStack stack = owner.getMainHandItem();
+        var ownerState = ItemSlashBlade.getBladeState(stack);
 
         List<Entity> founds = TargetSelector.getTargettableEntitiesWithinAABB(level, owner,
                 owner.getBoundingBox().inflate(48.0D), TargetSelector.getResolvedReach(owner) + 32D);
@@ -95,15 +99,14 @@ public class JudgementCut {
         }
         for (Entity entity : founds) {
             if (entity instanceof LivingEntity) {
-
                 ((LivingEntity) entity).addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 10));
                 EntityJudgementCut judgementCut = new EntityJudgementCut(SlashBlade.RegistryEvents.JudgementCut, level);
                 judgementCut.setPos(entity.getX(), entity.getY(), entity.getZ());
                 judgementCut.setOwner(owner);
-                stack.getCapability(ItemSlashBlade.BLADESTATE)
-                        .ifPresent(state -> judgementCut.setColor(state.getColorCode()));
-                owner.getCapability(ConcentrationRankCapabilityProvider.RANK_POINT)
-                        .ifPresent(rank -> judgementCut.setRank(rank.getRankLevel(level.getGameTime())));
+                if (ownerState != null) {
+                    judgementCut.setColor(ownerState.getColorCode());
+                }
+                judgementCut.setRank(owner.getData(CapabilityConcentrationRank.RANK_POINT).getRankLevel(level.getGameTime()));
                 level.addFreshEntity(judgementCut);
             }
         }

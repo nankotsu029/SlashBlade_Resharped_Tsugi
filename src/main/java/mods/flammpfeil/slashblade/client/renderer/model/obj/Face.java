@@ -5,8 +5,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -75,10 +75,10 @@ public class Face {
 
     void putVertex(VertexConsumer wr, int i, Matrix4f transform, float textureOffset, float averageU, float averageV, int light, int color) {
         float offsetU, offsetV;
-        wr.vertex(transform, vertices[i].x, vertices[i].y, vertices[i].z);
+        wr.addVertex(transform, vertices[i].x, vertices[i].y, vertices[i].z);
 
 
-        wr.color(FastColor.ARGB32.red(color), FastColor.ARGB32.green(color), FastColor.ARGB32.blue(color),
+        wr.setColor(FastColor.ARGB32.red(color), FastColor.ARGB32.green(color), FastColor.ARGB32.blue(color),
                 alphaOverride.apply(new Vector4f(vertices[i].x, vertices[i].y, vertices[i].z, 1.0F), FastColor.ARGB32.alpha(color))
         );
 
@@ -96,13 +96,13 @@ public class Face {
                 offsetV = -offsetV;
             }
 
-            wr.uv(textureU + offsetU, textureV + offsetV);
+            wr.setUv(textureU + offsetU, textureV + offsetV);
         } else {
-            wr.uv(0, 0);
+            wr.setUv(0, 0);
         }
 
-        wr.overlayCoords(OverlayTexture.NO_OVERLAY);
-        wr.uv2(light);
+        wr.setOverlay(OverlayTexture.NO_OVERLAY);
+        wr.setLight(light);
 
         Vector3f vector3f;
         if (vertexNormals != null) {
@@ -115,9 +115,7 @@ public class Face {
 
         vector3f.mul(new Matrix3f(transform));
         vector3f.normalize();
-        wr.normal(vector3f.x(), vector3f.y(), vector3f.z());
-
-        wr.endVertex();
+        wr.setNormal(vector3f.x(), vector3f.y(), vector3f.z());
     }
 
     public Vertex calculateFaceNormal() {

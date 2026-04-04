@@ -3,28 +3,37 @@ package mods.flammpfeil.slashblade.item;
 import com.google.common.collect.*;
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.SlashBladeConfig;
-import mods.flammpfeil.slashblade.capability.inputstate.IInputState;
+import mods.flammpfeil.slashblade.capability.inputstate.InputState;
 import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
-import mods.flammpfeil.slashblade.capability.slashblade.NamedBladeStateCapabilityProvider;
+import mods.flammpfeil.slashblade.capability.slashblade.SlashBladeState;
 import mods.flammpfeil.slashblade.client.renderer.SlashBladeTEISR;
 import mods.flammpfeil.slashblade.data.tag.SlashBladeItemTags;
 import mods.flammpfeil.slashblade.entity.BladeItemEntity;
 import mods.flammpfeil.slashblade.event.SlashBladeEvent;
 import mods.flammpfeil.slashblade.init.DefaultResources;
+import mods.flammpfeil.slashblade.init.ModAttachments;
+import mods.flammpfeil.slashblade.init.ModDataComponents;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
 import mods.flammpfeil.slashblade.registry.SlashBladeItems;
 import mods.flammpfeil.slashblade.registry.combo.ComboState;
 import mods.flammpfeil.slashblade.registry.specialeffects.SpecialEffect;
 import mods.flammpfeil.slashblade.util.InputCommand;
+import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import net.minecraft.ChatFormatting;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -37,30 +46,24 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-import net.minecraftforge.common.ForgeMod;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.CapabilityManager;
-import net.minecraftforge.common.capabilities.CapabilityToken;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.attachment.AttachmentType;
+import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
+import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -68,30 +71,82 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public class ItemSlashBlade extends SwordItem {
-    protected static final UUID ATTACK_DAMAGE_AMPLIFIER = UUID.fromString("2D988C13-595B-4E58-B254-39BB6FA077FD");
-    protected static final UUID PLAYER_REACH_AMPLIFIER = UUID.fromString("2D988C13-595B-4E58-B254-39BB6FA077FE");
+    protected static final ResourceLocation ATTACK_DAMAGE_AMPLIFIER = SlashBlade.prefix("attack_damage_amplifier");
+    // TODO(neoforge-1.21.1): Reintroduce custom reach via the 1.21 attribute/item system once the old NeoForge reach attribute usage is replaced.
 
-    public static final Capability<ISlashBladeState> BLADESTATE = CapabilityManager.get(new CapabilityToken<>() {
-    });
-    public static final Capability<IInputState> INPUT_STATE = CapabilityManager.get(new CapabilityToken<>() {
-    });
+    /** DataComponentType for per-stack blade state. Use stack.get(BLADESTATE) to read (nullable). */
+    public static final DataComponentType<SlashBladeState> BLADESTATE = ModDataComponents.BLADE_STATE.get();
+    /** AttachmentType for per-entity input state. Use entity.getData(INPUT_STATE) to read (never null). */
+    public static final AttachmentType<InputState> INPUT_STATE = ModAttachments.INPUT_STATE.get();
 
-    public static final List<Enchantment> exEnchantment = List.of(Enchantments.SOUL_SPEED, Enchantments.POWER_ARROWS,
-            Enchantments.FALL_PROTECTION, Enchantments.FIRE_PROTECTION,
-            ForgeRegistries.ENCHANTMENTS.getValue(new ResourceLocation("minecraft", "feather_falling")),
-            ForgeRegistries.ENCHANTMENTS.getValue(new ResourceLocation("minecraft", "fire_protection")),
+    public static final List<ResourceKey<Enchantment>> exEnchantment = List.of(
+            Enchantments.SOUL_SPEED,
+            Enchantments.POWER,
+            Enchantments.FEATHER_FALLING,
+            Enchantments.FIRE_PROTECTION,
             Enchantments.THORNS);
 
     public ItemSlashBlade(Tier tier, int attackDamageIn, float attackSpeedIn, Properties builder) {
-        super(tier, attackDamageIn, attackSpeedIn, builder);
+        super(tier, withDefaultBladeState(builder).attributes(SwordItem.createAttributes(tier, attackDamageIn, attackSpeedIn)));
+    }
+
+    private static Properties withDefaultBladeState(Properties builder) {
+        return builder.component(ModDataComponents.BLADE_STATE.get(), new SlashBladeState());
+    }
+
+    public static @Nullable SlashBladeState getBladeState(ItemStack stack) {
+        SlashBladeState state = stack.get(BLADESTATE);
+        return state == null || state.isEmpty() ? null : state;
+    }
+
+    public static SlashBladeState getOrCreateBladeState(ItemStack stack) {
+        SlashBladeState state = stack.get(BLADESTATE);
+        if (state == null) {
+            state = new SlashBladeState();
+        } else {
+            state = state.copy();
+        }
+        return state;
+    }
+
+    public static void setBladeState(ItemStack stack, SlashBladeState state) {
+        state.setNonEmpty();
+        if (stack.getItem() instanceof ItemSlashBlade bladeItem) {
+            stack.set(BLADESTATE, bladeItem.initializeBladeState(stack, state));
+            return;
+        }
+        stack.set(BLADESTATE, state);
+    }
+
+    public static void updateBladeState(ItemStack stack, Consumer<SlashBladeState> updater) {
+        SlashBladeState state = getOrCreateBladeState(stack);
+        updater.accept(state);
+        setBladeState(stack, state);
+    }
+
+    protected SlashBladeState initializeBladeState(ItemStack stack, SlashBladeState state) {
+        if (state.getMaxDamage() <= 0) {
+            state.setMaxDamage(stack.getMaxDamage());
+        }
+        return state;
     }
 
     @Override
-    public boolean canApplyAtEnchantingTable(ItemStack stack, Enchantment enchantment) {
-        if (exEnchantment.contains(enchantment)) {
+    public void verifyComponentsAfterLoad(ItemStack stack) {
+        super.verifyComponentsAfterLoad(stack);
+        SlashBladeState state = stack.get(BLADESTATE);
+        if (state == null) {
+            return;
+        }
+        setBladeState(stack, state.copy());
+    }
+
+    @Override
+    public boolean supportsEnchantment(ItemStack stack, Holder<Enchantment> enchantment) {
+        if (exEnchantment.stream().anyMatch(enchantment::is)) {
             return true;
         }
-        return super.canApplyAtEnchantingTable(stack, enchantment);
+        return super.supportsEnchantment(stack, enchantment);
     }
 
     @Override
@@ -100,57 +155,44 @@ public class ItemSlashBlade extends SwordItem {
     }
 
     @Override
-    public Multimap<Attribute, AttributeModifier> getAttributeModifiers(EquipmentSlot slot, ItemStack stack) {
-        Multimap<Attribute, AttributeModifier> def = super.getAttributeModifiers(slot, stack);
-        Multimap<Attribute, AttributeModifier> result = ArrayListMultimap.create();
-
-        result.putAll(Attributes.ATTACK_DAMAGE, def.get(Attributes.ATTACK_DAMAGE));
-        result.putAll(Attributes.ATTACK_SPEED, def.get(Attributes.ATTACK_SPEED));
-
-        if (slot == EquipmentSlot.MAINHAND) {
-            LazyOptional<ISlashBladeState> state = stack.getCapability(BLADESTATE);
-            state.ifPresent(s -> {
-                // 刀的状态
-                var swordType = SwordType.from(stack);
-                // 获得基础攻击力
-                float baseAttackModifier = s.getBaseAttackModifier();
-                // 锻造数
-                int refine = s.getRefine();
-
-                s.getAttackAmplifier();
-                float attackAmplifier;
-                if (s.isBroken()) {
-                    // 断刀-0.5伤害
-                    attackAmplifier = -0.5F - baseAttackModifier;
-                } else {
-                    float refineFactor = swordType.contains(SwordType.FIERCEREDGE) ? 0.1F : 0.05F;
-                    // 锻造伤害面板增加计算，非线性，收益递减。(理论最大值为额外100%基础攻击)
-                    attackAmplifier = (1.0F - (1.0F / (1.0F + (refineFactor * refine)))) * baseAttackModifier;
-                }
-
-                double damage = (double) baseAttackModifier + attackAmplifier - 1F;
-
-                var event = new SlashBladeEvent.UpdateAttackEvent(stack, s, damage);
-                MinecraftForge.EVENT_BUS.post(event);
-
-                AttributeModifier attack = new AttributeModifier(BASE_ATTACK_DAMAGE_UUID, "Weapon modifier",
-                        event.getNewDamage(), AttributeModifier.Operation.ADDITION);
-
-                result.remove(Attributes.ATTACK_DAMAGE, attack);
-                result.put(Attributes.ATTACK_DAMAGE, attack);
-
-                result.put(ForgeMod.ENTITY_REACH.get(),
-                        new AttributeModifier(PLAYER_REACH_AMPLIFIER, "Reach amplifer",
-                                s.isBroken() ? ReachModifier.BrokendReach() : ReachModifier.BladeReach(),
-                                AttributeModifier.Operation.ADDITION));
-
-            });
+    public ItemAttributeModifiers getDefaultAttributeModifiers(ItemStack stack) {
+        ItemAttributeModifiers defaults = super.getDefaultAttributeModifiers(stack);
+        SlashBladeState s = getBladeState(stack);
+        if (s == null) {
+            return defaults;
         }
 
-        return result;
+        var swordType = SwordType.from(stack);
+        float baseAttackModifier = s.getBaseAttackModifier();
+        int refine = s.getRefine();
+
+        float attackAmplifier;
+        if (s.isBroken()) {
+            attackAmplifier = -0.5F - baseAttackModifier;
+        } else {
+            float refineFactor = swordType.contains(SwordType.FIERCEREDGE) ? 0.1F : 0.05F;
+            attackAmplifier = (1.0F - (1.0F / (1.0F + (refineFactor * refine)))) * baseAttackModifier;
+        }
+
+        double damage = (double) baseAttackModifier + attackAmplifier - 1F;
+
+        var event = new SlashBladeEvent.UpdateAttackEvent(stack, s, damage);
+        NeoForge.EVENT_BUS.post(event);
+
+        ItemAttributeModifiers.Builder builder = ItemAttributeModifiers.builder();
+        for (ItemAttributeModifiers.Entry entry : defaults.modifiers()) {
+            if (!entry.attribute().equals(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)) {
+                builder.add(entry.attribute(), entry.modifier(), entry.slot());
+            }
+        }
+
+        builder.add(
+                net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE,
+                new AttributeModifier(BASE_ATTACK_DAMAGE_ID, event.getNewDamage(), AttributeModifier.Operation.ADD_VALUE),
+                EquipmentSlotGroup.MAINHAND);
+        return builder.build();
     }
 
-    @Override
     public @NotNull Rarity getRarity(@NotNull ItemStack stack) {
         EnumSet<SwordType> type = SwordType.from(stack);
         if (type.contains(SwordType.BEWITCHED)) {
@@ -163,7 +205,7 @@ public class ItemSlashBlade extends SwordItem {
     }
 
     @Override
-    public int getUseDuration(@NotNull ItemStack stack) {
+    public int getUseDuration(@NotNull ItemStack stack, @NotNull LivingEntity entity) {
         return 72000;
     }
 
@@ -173,20 +215,21 @@ public class ItemSlashBlade extends SwordItem {
         if (handIn == InteractionHand.OFF_HAND && !(playerIn.getMainHandItem().getItem() instanceof ItemSlashBlade)) {
             return InteractionResultHolder.pass(itemstack);
         }
-        boolean result = itemstack.getCapability(BLADESTATE).map((state) -> {
+        SlashBladeState bladeState = getBladeState(itemstack);
+        boolean result = false;
+        if (bladeState != null) {
+            InputState inputState = playerIn.getData(INPUT_STATE);
+            inputState.getCommands().add(InputCommand.R_CLICK);
 
-            playerIn.getCapability(INPUT_STATE).ifPresent((s) -> s.getCommands().add(InputCommand.R_CLICK));
+            ResourceLocation combo = bladeState.progressCombo(playerIn);
 
-            ResourceLocation combo = state.progressCombo(playerIn);
-
-            playerIn.getCapability(INPUT_STATE).ifPresent((s) -> s.getCommands().remove(InputCommand.R_CLICK));
+            inputState.getCommands().remove(InputCommand.R_CLICK);
 
             if (!combo.equals(ComboStateRegistry.NONE.getId())) {
                 playerIn.swing(handIn);
             }
-
-            return true;
-        }).orElse(false);
+            result = true;
+        }
 
         playerIn.startUsingItem(handIn);
         return new InteractionResultHolder<>(result ? InteractionResult.SUCCESS : InteractionResult.FAIL, itemstack);
@@ -194,18 +237,17 @@ public class ItemSlashBlade extends SwordItem {
 
     @Override
     public boolean onLeftClickEntity(ItemStack itemstack, Player playerIn, Entity entity) {
-        Optional<ISlashBladeState> stateHolder = itemstack.getCapability(BLADESTATE)
-                .filter((state) -> !state.onClick());
+        SlashBladeState bladeState = getBladeState(itemstack);
+        if (bladeState == null || bladeState.onClick()) {
+            return false;
+        }
 
-        stateHolder.ifPresent((state) -> {
-            playerIn.getCapability(INPUT_STATE).ifPresent((s) -> s.getCommands().add(InputCommand.L_CLICK));
+        InputState inputState = playerIn.getData(INPUT_STATE);
+        inputState.getCommands().add(InputCommand.L_CLICK);
+        bladeState.progressCombo(playerIn);
+        inputState.getCommands().remove(InputCommand.L_CLICK);
 
-            state.progressCombo(playerIn);
-
-            playerIn.getCapability(INPUT_STATE).ifPresent((s) -> s.getCommands().remove(InputCommand.L_CLICK));
-        });
-
-        return stateHolder.isPresent();
+        return true;
     }
 
     public static final String BREAK_ACTION_TIMEOUT = "BreakActionTimeout";
@@ -216,7 +258,7 @@ public class ItemSlashBlade extends SwordItem {
         if (maxDamage < 0) {
             return;
         }
-        var state = stack.getCapability(BLADESTATE).orElseThrow(NullPointerException::new);
+        var state = Objects.requireNonNull(getBladeState(stack), "ItemStack has no active BLADE_STATE component");
         if (state.isBroken()) {
             if (damage <= 0 && !state.isSealed()) {
                 state.setBroken(false);
@@ -228,7 +270,7 @@ public class ItemSlashBlade extends SwordItem {
     }
 
     @Override
-    public <T extends LivingEntity> int damageItem(ItemStack stack, int amount, T entity, Consumer<T> onBroken) {
+    public <T extends LivingEntity> int damageItem(ItemStack stack, int amount, @Nullable T entity, Consumer<Item> onBroken) {
         if (stack.getMaxDamage() <= 0) {
             return 0;
         }
@@ -237,19 +279,18 @@ public class ItemSlashBlade extends SwordItem {
             return 0;
         }
 
-        var cap = stack.getCapability(BLADESTATE).orElseThrow(NullPointerException::new);
+        var cap = Objects.requireNonNull(getBladeState(stack), "ItemStack has no active BLADE_STATE component");
         boolean current = cap.isBroken();
 
         if (stack.getDamageValue() + amount >= stack.getMaxDamage()) {
             amount = 0;
             stack.setDamageValue(stack.getMaxDamage() - 1);
-            cap.setBroken(!MinecraftForge.EVENT_BUS.post(new SlashBladeEvent.BreakEvent(stack, cap)));
+            cap.setBroken(!NeoForge.EVENT_BUS.post(new SlashBladeEvent.BreakEvent(stack, cap)).isCanceled());
         }
 
         if (current != cap.isBroken()) {
-            onBroken.accept(entity);
+            onBroken.accept(stack.getItem());
             if (entity instanceof ServerPlayer player) {
-                stack.getShareTag();
                 CriteriaTriggers.CONSUME_ITEM.trigger(player, stack);
             }
 
@@ -267,20 +308,18 @@ public class ItemSlashBlade extends SwordItem {
 
     public static Consumer<LivingEntity> getOnBroken(ItemStack stack) {
         return (user) -> {
-            user.broadcastBreakEvent(user.getUsedItemHand());
-
-            var state = stack.getCapability(ItemSlashBlade.BLADESTATE).orElseThrow(NullPointerException::new);
+            var state = Objects.requireNonNull(getBladeState(stack), "ItemStack has no active BLADE_STATE component");
             if (stack.isEnchanted()) {
                 int count = state.getProudSoulCount() >= SlashBladeConfig.MAX_ENCHANTED_PROUDSOUL_DROP.get() * 100 ?
                         SlashBladeConfig.MAX_ENCHANTED_PROUDSOUL_DROP.get() : Math.max(1, state.getProudSoulCount() / 100);
-                List<Enchantment> enchantments = ForgeRegistries.ENCHANTMENTS.getValues().stream()
-                        .filter(stack::canApplyAtEnchantingTable)
+                List<Holder.Reference<Enchantment>> enchantments = user.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).listElements()
+                        .filter(stack::isPrimaryItemFor)
                         .filter(enchantment -> !SlashBladeConfig.NON_DROPPABLE_ENCHANTMENT.get()
-                                .contains(Objects.requireNonNull(ForgeRegistries.ENCHANTMENTS.getKey(enchantment)).toString()))
+                                .contains(enchantment.key().location().toString()))
                         .toList();
                 for (int i = 0; i < count; i += 1) {
                     ItemStack enchanted_soul = new ItemStack(SlashBladeItems.PROUDSOUL_TINY.get());
-                    Enchantment enchant = enchantments.get(user.getRandom().nextInt(0, enchantments.size()));
+                    Holder<Enchantment> enchant = enchantments.get(user.getRandom().nextInt(0, enchantments.size()));
                     if (enchant != null) {
                         enchanted_soul.enchant(enchant, 1);
                         ItemEntity itemEntity = new ItemEntity(user.level(), user.getX(), user.getY(), user.getZ(),
@@ -336,7 +375,7 @@ public class ItemSlashBlade extends SwordItem {
 
             e.setAirSupply(-1);
 
-            e.setThrower(user.getUUID());
+            // TODO(neoforge-1.21.1): Restore BladeItemEntity ownership metadata if pickup/credit logic still depends on it.
 
             user.level().addFreshEntity(e);
 
@@ -347,22 +386,24 @@ public class ItemSlashBlade extends SwordItem {
     @Override
     public boolean hurtEnemy(ItemStack stack, @NotNull LivingEntity target, @NotNull LivingEntity attacker) {
 
-        stack.getCapability(BLADESTATE).ifPresent((state) -> {
+        SlashBladeState state = getBladeState(stack);
+        if (state != null) {
             ResourceLocation loc = state.resolvCurrentComboState(attacker);
-            ComboState cs = ComboStateRegistry.REGISTRY.get().getValue(loc) != null
-                    ? ComboStateRegistry.REGISTRY.get().getValue(loc)
+            ComboState cs = ComboStateRegistry.REGISTRY.get(loc) != null
+                    ? ComboStateRegistry.REGISTRY.get(loc)
                     : ComboStateRegistry.NONE.get();
 
-            if (MinecraftForge.EVENT_BUS.post(new SlashBladeEvent.HitEvent(stack, state, target, attacker))) {
-                return;
+            var hitEvent = new SlashBladeEvent.HitEvent(stack, state, target, attacker);
+            NeoForge.EVENT_BUS.post(hitEvent);
+            if (hitEvent.isCanceled()) {
+                return true;
             }
 
             if (cs != null) {
                 cs.hitEffect(target, attacker);
             }
-            stack.hurtAndBreak(1, attacker, ItemSlashBlade.getOnBroken(stack));
-
-        });
+            stack.hurtAndBreak(1, attacker, EquipmentSlot.MAINHAND);
+        }
 
         return true;
     }
@@ -371,8 +412,8 @@ public class ItemSlashBlade extends SwordItem {
     public boolean mineBlock(@NotNull ItemStack stack, @NotNull Level worldIn, BlockState state, @NotNull BlockPos pos,
                              @NotNull LivingEntity entityLiving) {
 
-        if (state.getDestroySpeed(worldIn, pos) != 0.0F) {
-            stack.getCapability(BLADESTATE).ifPresent((s) -> stack.hurtAndBreak(1, entityLiving, ItemSlashBlade.getOnBroken(stack)));
+        if (state.getDestroySpeed(worldIn, pos) != 0.0F && getBladeState(stack) != null) {
+            stack.hurtAndBreak(1, entityLiving, EquipmentSlot.MAINHAND);
         }
 
         return true;
@@ -380,71 +421,65 @@ public class ItemSlashBlade extends SwordItem {
 
     @Override
     public void releaseUsing(@NotNull ItemStack stack, Level worldIn, @NotNull LivingEntity entityLiving, int timeLeft) {
-        int elapsed = this.getUseDuration(stack) - timeLeft;
+        int elapsed = this.getUseDuration(stack, entityLiving) - timeLeft;
 
         if (!worldIn.isClientSide()) {
-
-            stack.getCapability(BLADESTATE).ifPresent((state) -> {
-
+            SlashBladeState state = getBladeState(stack);
+            if (state != null) {
                 var swordType = SwordType.from(stack);
-                if (state.isBroken() || state.isSealed() || !(swordType.contains(SwordType.ENCHANTED))) {
-                    return;
-                }
-
-                ResourceLocation sa = state.doChargeAction(entityLiving, elapsed);
-                boolean isCreative = false;
-                // sa.tickAction(entityLiving);
-                if (!sa.equals(ComboStateRegistry.NONE.getId())) {
-                    if (entityLiving instanceof Player player) {
-                        isCreative = player.getAbilities().instabuild;
-                    }
-                    if (!isCreative) {
-                        var cost = state.getSlashArts().getProudSoulCost();
-                        if (state.getProudSoulCount() >= cost) {
-                            state.setProudSoulCount(state.getProudSoulCount() - cost);
-                        } else {
-                            stack.hurtAndBreak(1, entityLiving, ItemSlashBlade.getOnBroken(stack));
+                if (!state.isBroken() && !state.isSealed() && swordType.contains(SwordType.ENCHANTED)) {
+                    ResourceLocation sa = state.doChargeAction(entityLiving, elapsed);
+                    boolean isCreative = false;
+                    if (!sa.equals(ComboStateRegistry.NONE.getId())) {
+                        if (entityLiving instanceof Player player) {
+                            isCreative = player.getAbilities().instabuild;
                         }
+                        if (!isCreative) {
+                            var cost = state.getSlashArts().getProudSoulCost();
+                            if (state.getProudSoulCount() >= cost) {
+                                state.setProudSoulCount(state.getProudSoulCount() - cost);
+                            } else {
+                                stack.hurtAndBreak(1, entityLiving, EquipmentSlot.MAINHAND);
+                            }
+                        }
+                        entityLiving.swing(InteractionHand.MAIN_HAND);
                     }
-                    entityLiving.swing(InteractionHand.MAIN_HAND);
                 }
-            });
+            }
         }
     }
 
     @Override
     public void onUseTick(@NotNull Level level, @NotNull LivingEntity player, ItemStack stack, int count) {
 
-        stack.getCapability(BLADESTATE).ifPresent((state) -> {
-
-            (ComboStateRegistry.REGISTRY.get().getValue(state.getComboSeq()) != null
-                    ? ComboStateRegistry.REGISTRY.get().getValue(state.getComboSeq())
+        SlashBladeState bladeState = getBladeState(stack);
+        if (bladeState != null) {
+            (ComboStateRegistry.REGISTRY.get(bladeState.getComboSeq()) != null
+                    ? ComboStateRegistry.REGISTRY.get(bladeState.getComboSeq())
                     : ComboStateRegistry.NONE.get()).holdAction(player);
             var swordType = SwordType.from(stack);
-            if (state.isBroken() || state.isSealed() || !(swordType.contains(SwordType.ENCHANTED))) {
-                return;
-            }
-            if (!player.level().isClientSide()) {
-                int ticks = player.getTicksUsingItem();
-                int fullChargeTicks = state.getFullChargeTicks(player);
-                if (0 < ticks) {
-                    if (ticks == fullChargeTicks) {// state.getFullChargeTicks(player)){
+            if (!bladeState.isBroken() && !bladeState.isSealed() && swordType.contains(SwordType.ENCHANTED)) {
+                if (!player.level().isClientSide()) {
+                    int ticks = player.getTicksUsingItem();
+                    int fullChargeTicks = bladeState.getFullChargeTicks(player);
+                    if (0 < ticks && ticks == fullChargeTicks) {
                         Vec3 pos = player.getEyePosition(1.0f).add(player.getLookAngle());
                         ((ServerLevel) player.level()).sendParticles(ParticleTypes.PORTAL, pos.x, pos.y, pos.z, 7, 0.7,
                                 0.7, 0.7, 0.02);
                     }
                 }
             }
-        });
+        }
     }
 
     @Override
     public void inventoryTick(@NotNull ItemStack stack, @NotNull Level worldIn, @NotNull Entity entityIn, int itemSlot, boolean isSelected) {
         super.inventoryTick(stack, worldIn, entityIn, itemSlot, isSelected);
 
-        stack.getCapability(BLADESTATE).ifPresent((state) -> {
-            if (MinecraftForge.EVENT_BUS
-                    .post(new SlashBladeEvent.UpdateEvent(stack, state, worldIn, entityIn, itemSlot, isSelected))) {
+        SlashBladeState state = getBladeState(stack);
+        if (state != null) {
+            if (NeoForge.EVENT_BUS
+                    .post(new SlashBladeEvent.UpdateEvent(stack, state, worldIn, entityIn, itemSlot, isSelected)).isCanceled()) {
                 return;
             }
 
@@ -475,14 +510,11 @@ public class ItemSlashBlade extends SwordItem {
                 }
             }
             if (entityIn instanceof LivingEntity living) {
-                entityIn.getCapability(INPUT_STATE).ifPresent(mInput -> mInput.getScheduler().onTick(living));
+                living.getData(INPUT_STATE).getScheduler().onTick(living);
 
-                /*
-                 * if(0.5f > state.getDamage()) state.setDamage(0.99f);
-                 */
                 ResourceLocation loc = state.resolvCurrentComboState(living);
-                ComboState cs = ComboStateRegistry.REGISTRY.get().getValue(loc) != null
-                        ? ComboStateRegistry.REGISTRY.get().getValue(loc)
+                ComboState cs = ComboStateRegistry.REGISTRY.get(loc) != null
+                        ? ComboStateRegistry.REGISTRY.get(loc)
                         : ComboStateRegistry.NONE.get();
 
                 if (isInMainhand(stack, isSelected, living)) {
@@ -493,45 +525,27 @@ public class ItemSlashBlade extends SwordItem {
                     }
                 }
             }
-        });
+        }
     }
 
     public static boolean isInMainhand(ItemStack stack, boolean isSelected, LivingEntity living) {
-        return isSelected && stack.equals(living.getMainHandItem(), false);
-    }
-
-    @Nullable
-    @Override
-    public CompoundTag getShareTag(ItemStack stack) {
-        var tag = stack.getOrCreateTag();
-        stack.getCapability(BLADESTATE).ifPresent(state -> {
-            if (!state.isEmpty()) {
-                tag.put("bladeState", state.serializeNBT());
-            }
-        });
-        return tag;
-    }
-
-    @Override
-    public void readShareTag(ItemStack stack, @Nullable CompoundTag nbt) {
-        if (nbt != null) {
-            if (nbt.contains("bladeState")) {
-                stack.getCapability(BLADESTATE).ifPresent(state -> state.deserializeNBT(nbt.getCompound("bladeState")));
-            }
-        }
-        super.readShareTag(stack, nbt);
+        return isSelected && ItemStack.isSameItemSameComponents(stack, living.getMainHandItem());
     }
 
     // damage ----------------------------------------------------------
+    // Note: getShareTag/readShareTag removed — blade state is now a DataComponent
+    //       and is automatically synced by NeoForge's component sync system.
 
     @Override
     public int getDamage(ItemStack stack) {
-        return stack.getCapability(BLADESTATE).filter(s -> !s.isEmpty()).map(ISlashBladeState::getDamage).orElse(0);
+        SlashBladeState s = getBladeState(stack);
+        return (s != null && !s.isEmpty()) ? s.getDamage() : 0;
     }
 
     @Override
     public int getMaxDamage(ItemStack stack) {
-        return stack.getCapability(BLADESTATE).filter(s -> !s.isEmpty()).map(ISlashBladeState::getMaxDamage).orElse(this.getTier().getUses());
+        SlashBladeState s = getBladeState(stack);
+        return (s != null && !s.isEmpty()) ? s.getMaxDamage() : this.getTier().getUses();
     }
 
     @Override
@@ -541,31 +555,19 @@ public class ItemSlashBlade extends SwordItem {
 
     @Override
     public @NotNull String getDescriptionId(ItemStack stack) {
-        return stack.getCapability(BLADESTATE).filter((s) -> !s.getTranslationKey().isBlank())
-                .map(ISlashBladeState::getTranslationKey).orElseGet(() -> stackDefaultDescriptionId(stack));
+        SlashBladeState s = getBladeState(stack);
+        if (s != null && !s.getTranslationKey().isBlank()) {
+            return s.getTranslationKey();
+        }
+        return super.getDescriptionId(stack);
     }
 
     public ResourceLocation getBladeId(ItemStack stack) {
-        return stack.getCapability(BLADESTATE).filter((s) -> !s.getTranslationKey().isBlank())
-                .map((state) -> parseBladeID(state.getTranslationKey())).orElseGet(() -> stackDefaultId(stack));
-    }
-
-    private String stackDefaultDescriptionId(ItemStack stack) {
-        CompoundTag tag = stack.getOrCreateTag();
-        if (!tag.contains("bladeState")) {
-            return super.getDescriptionId(stack);
+        SlashBladeState s = getBladeState(stack);
+        if (s != null && !s.getTranslationKey().isBlank()) {
+            return parseBladeID(s.getTranslationKey());
         }
-        String key = tag.getCompound("bladeState").getString("translationKey");
-        return !key.isBlank() ? key : super.getDescriptionId(stack);
-    }
-
-    private ResourceLocation stackDefaultId(ItemStack stack) {
-        CompoundTag tag = stack.getOrCreateTag();
-        if (!tag.contains("bladeState")) {
-            return ForgeRegistries.ITEMS.getKey(this);
-        }
-        String key = tag.getCompound("bladeState").getString("translationKey");
-        return !key.isBlank() ? parseBladeID(key) : ForgeRegistries.ITEMS.getKey(this);
+        return BuiltInRegistries.ITEM.getKey(this);
     }
 
     public static ResourceLocation parseBladeID(String key) {
@@ -605,17 +607,17 @@ public class ItemSlashBlade extends SwordItem {
 
     @OnlyIn(Dist.CLIENT)
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level worldIn, @NotNull List<Component> tooltip, @NotNull TooltipFlag flagIn) {
-        stack.getCapability(ItemSlashBlade.BLADESTATE).ifPresent(s -> {
-            this.appendSwordType(stack, worldIn, tooltip, flagIn); // √
+    public void appendHoverText(ItemStack stack, @NotNull Item.TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flagIn) {
+        SlashBladeState s = getBladeState(stack);
+        if (s != null) {
+            this.appendSwordType(stack, context, tooltip, flagIn);
             this.appendProudSoulCount(tooltip, stack);
             this.appendKillCount(tooltip, stack);
-            this.appendSlashArt(stack, tooltip, s); // √
+            this.appendSlashArt(stack, tooltip, s);
             this.appendRefineCount(tooltip, stack);
-            this.appendSpecialEffects(tooltip, s); // √
-        });
-
-        super.appendHoverText(stack, worldIn, tooltip, flagIn);
+            this.appendSpecialEffects(tooltip, s);
+        }
+        super.appendHoverText(stack, context, tooltip, flagIn);
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -629,11 +631,9 @@ public class ItemSlashBlade extends SwordItem {
 
     @OnlyIn(Dist.CLIENT)
     public void appendRefineCount(List<Component> tooltip, @NotNull ItemStack stack) {
-        CompoundTag tag = stack.getOrCreateTag();
-        if (!tag.contains("bladeState")) {
-            return;
-        }
-        int refine = tag.getCompound("bladeState").getInt("RepairCounter");
+        SlashBladeState s = getBladeState(stack);
+        if (s == null) return;
+        int refine = s.getRefine();
         if (refine > 0) {
             tooltip.add(Component.translatable("slashblade.tooltip.refine", refine)
                     .withStyle((ChatFormatting) refineColor.get(refine)));
@@ -642,11 +642,9 @@ public class ItemSlashBlade extends SwordItem {
 
     @OnlyIn(Dist.CLIENT)
     public void appendProudSoulCount(List<Component> tooltip, @NotNull ItemStack stack) {
-        CompoundTag tag = stack.getOrCreateTag();
-        if (!tag.contains("bladeState")) {
-            return;
-        }
-        int proudsoul = tag.getCompound("bladeState").getInt("proudSoul");
+        SlashBladeState s = getBladeState(stack);
+        if (s == null) return;
+        int proudsoul = s.getProudSoulCount();
         if (proudsoul > 0) {
             MutableComponent countComponent = Component.translatable("slashblade.tooltip.proud_soul", proudsoul)
                     .withStyle(ChatFormatting.GRAY);
@@ -659,11 +657,9 @@ public class ItemSlashBlade extends SwordItem {
 
     @OnlyIn(Dist.CLIENT)
     public void appendKillCount(List<Component> tooltip, @NotNull ItemStack stack) {
-        CompoundTag tag = stack.getOrCreateTag();
-        if (!tag.contains("bladeState")) {
-            return;
-        }
-        int killCount = tag.getCompound("bladeState").getInt("killCount");
+        SlashBladeState s = getBladeState(stack);
+        if (s == null) return;
+        int killCount = s.getKillCount();
         if (killCount > 0) {
             MutableComponent killCountComponent = Component.translatable("slashblade.tooltip.killcount", killCount)
                     .withStyle(ChatFormatting.GRAY);
@@ -698,7 +694,7 @@ public class ItemSlashBlade extends SwordItem {
     }
 
     @OnlyIn(Dist.CLIENT)
-    public void appendSwordType(ItemStack stack, @Nullable Level worldIn, List<Component> tooltip, TooltipFlag flagIn) {
+    public void appendSwordType(ItemStack stack, @NotNull Item.TooltipContext context, List<Component> tooltip, TooltipFlag flagIn) {
         var swordType = SwordType.from(stack);
         boolean goldenFlag = swordType.containsAll(List.of(SwordType.SOULEATER, SwordType.FIERCEREDGE));
         if (swordType.contains(SwordType.SEALED)) {
@@ -715,21 +711,16 @@ public class ItemSlashBlade extends SwordItem {
         }
     }
 
-    @Override
-    public ICapabilityProvider initCapabilities(ItemStack stack, CompoundTag nbt) {
-        if (!stack.isEmpty() && stack.getItem() instanceof ItemSlashBlade) {
-            return new NamedBladeStateCapabilityProvider(stack);
-        }
-        return null;
-    }
+    // initCapabilities() removed — BladeState is now a DataComponent (ModDataComponents.BLADE_STATE).
+    // NeoForge 1.21.1: set default component value via Item.Properties.component() at registration time.
 
     /**
      * @return true = cancel : false = swing
      */
     @Override
     public boolean onEntitySwing(ItemStack stack, LivingEntity entity) {
-        return stack.getCapability(BLADESTATE).filter(s -> s.getLastActionTime() == entity.level().getGameTime())
-                .isEmpty();
+        SlashBladeState s = getBladeState(stack);
+        return s == null || s.getLastActionTime() != entity.level().getGameTime();
     }
 
     @Override

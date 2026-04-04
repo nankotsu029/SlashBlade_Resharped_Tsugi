@@ -1,6 +1,7 @@
 package mods.flammpfeil.slashblade.compat.emi;
 
 import dev.emi.emi.api.stack.Comparison;
+import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import net.minecraft.world.item.ItemStack;
 
 public class EMIUtils {
@@ -11,8 +12,10 @@ public class EMIUtils {
         if (aStack.getItem() != bStack.getItem()) {
             return false;
         }
-        String keyA = self.getNbt().getCompound("bladeState").getString("translationKey");
-        String keyB = other.getNbt().getCompound("bladeState").getString("translationKey");
+        var stateA = ItemSlashBlade.getBladeState(aStack);
+        var stateB = ItemSlashBlade.getBladeState(bStack);
+        String keyA = stateA != null ? stateA.getTranslationKey() : "";
+        String keyB = stateB != null ? stateB.getTranslationKey() : "";
 
         return keyB.equals(keyA);
     });

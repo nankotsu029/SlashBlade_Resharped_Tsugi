@@ -1,8 +1,7 @@
 package mods.flammpfeil.slashblade.slasharts;
 
 import mods.flammpfeil.slashblade.SlashBlade;
-import mods.flammpfeil.slashblade.capability.concentrationrank.ConcentrationRankCapabilityProvider;
-import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
+import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank;
 import mods.flammpfeil.slashblade.entity.EntitySlashEffect;
 import mods.flammpfeil.slashblade.event.SlashBladeEvent;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
@@ -11,7 +10,7 @@ import mods.flammpfeil.slashblade.util.VectorHelper;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.MinecraftForge;
+import net.neoforged.neoforge.common.NeoForge;
 
 public class SakuraEnd {
     public static EntitySlashEffect doSlash(LivingEntity playerIn, float roll, Vec3 centerOffset, boolean mute,
@@ -22,8 +21,8 @@ public class SakuraEnd {
     public static EntitySlashEffect doSlash(LivingEntity playerIn, float roll, Vec3 centerOffset, boolean mute,
                                             boolean critical, double damage, KnockBacks knockback) {
 
-        int colorCode = playerIn.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                .map(ISlashBladeState::getColorCode).orElse(0xFFFFFF);
+        var bladeStateA = ItemSlashBlade.getBladeState(playerIn.getMainHandItem());
+        int colorCode = bladeStateA != null ? bladeStateA.getColorCode() : 0xFFFFFF;
 
         return doSlash(playerIn, roll, colorCode, centerOffset, mute, critical, damage, knockback);
     }
@@ -36,14 +35,16 @@ public class SakuraEnd {
         }
 
         ItemStack blade = playerIn.getMainHandItem();
-        if (!blade.getCapability(ItemSlashBlade.BLADESTATE).isPresent()) {
+        var bladeState = ItemSlashBlade.getBladeState(blade);
+        if (bladeState == null) {
             return null;
         }
         SlashBladeEvent.DoSlashEvent event = new SlashBladeEvent.DoSlashEvent(blade,
-                blade.getCapability(ItemSlashBlade.BLADESTATE).orElseThrow(NullPointerException::new),
+                bladeState,
                 playerIn, roll, critical, damage, knockback);
 
-        if (MinecraftForge.EVENT_BUS.post(event)) {
+        NeoForge.EVENT_BUS.post(event);
+        if (event.isCanceled()) {
             return null;
         }
 
@@ -71,8 +72,7 @@ public class SakuraEnd {
 
         jc.setKnockBack(event.getKnockback());
 
-        playerIn.getCapability(ConcentrationRankCapabilityProvider.RANK_POINT)
-                .ifPresent(rank -> jc.setRank(rank.getRankLevel(playerIn.level().getGameTime())));
+        jc.setRank(playerIn.getData(CapabilityConcentrationRank.RANK_POINT).getRankLevel(playerIn.level().getGameTime()));
 
         playerIn.level().addFreshEntity(jc);
 

@@ -1,30 +1,17 @@
 package mods.flammpfeil.slashblade.event.handler;
 
-import mods.flammpfeil.slashblade.SlashBlade;
-import mods.flammpfeil.slashblade.capability.concentrationrank.ConcentrationRankCapabilityProvider;
-import mods.flammpfeil.slashblade.capability.inputstate.InputStateCapabilityProvider;
-import mods.flammpfeil.slashblade.capability.mobeffect.MobEffectCapabilityProvider;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraftforge.event.AttachCapabilitiesEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-
+/**
+ * NeoForge 1.21.1: This class is no longer needed.
+ *
+ * In NeoForge 1.21.1, entity data (InputState, MobEffectState, ConcentrationRank) is
+ * automatically initialized on first access via AttachmentType.builder(supplier).
+ * There is no equivalent to AttachCapabilitiesEvent for AttachmentTypes.
+ *
+ * The old event registrations in SlashBlade.java have been removed.
+ *
+ * @deprecated Safe to delete; retained only as a documentation stub.
+ */
+@Deprecated
 public class CapabilityAttachHandler {
-
-    static public final ResourceLocation MOBEFFECT_KEY = new ResourceLocation(SlashBlade.MODID, "mobeffect");
-    static public final ResourceLocation INPUTSTATE_KEY = new ResourceLocation(SlashBlade.MODID, "inputstate");
-    static public final ResourceLocation RANK_KEY = new ResourceLocation(SlashBlade.MODID, "concentration");
-
-    @SubscribeEvent
-    public void AttachCapabilities_Entity(AttachCapabilitiesEvent<Entity> event) {
-        if (!(event.getObject() instanceof LivingEntity)) {
-            return;
-        }
-
-        event.addCapability(INPUTSTATE_KEY, new InputStateCapabilityProvider());
-        event.addCapability(MOBEFFECT_KEY, new MobEffectCapabilityProvider());
-        event.addCapability(RANK_KEY, new ConcentrationRankCapabilityProvider());
-    }
-
+    private CapabilityAttachHandler() {}
 }

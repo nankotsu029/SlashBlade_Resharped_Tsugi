@@ -1,5 +1,7 @@
 package mods.flammpfeil.slashblade.capability.concentrationrank;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageSource;
 
@@ -10,6 +12,22 @@ public class ConcentrationRank implements IConcentrationRank {
     long lastrankrise;
 
     static public long UnitCapacity = 300;
+
+    /**
+     * Codec for AttachmentType serialization.
+     * Persists rawPoint and lastupdate; lastrankrise resets per session.
+     */
+    public static final Codec<ConcentrationRank> CODEC = RecordCodecBuilder.create(instance ->
+            instance.group(
+                    Codec.LONG.optionalFieldOf("rawPoint", 0L).forGetter(cr -> cr.rankpoint),
+                    Codec.LONG.optionalFieldOf("lastupdate", 0L).forGetter(cr -> cr.lastupdate)
+            ).apply(instance, (rawPoint, lastUpdate) -> {
+                ConcentrationRank cr = new ConcentrationRank();
+                cr.rankpoint = rawPoint;
+                cr.lastupdate = lastUpdate;
+                return cr;
+            })
+    );
 
     public ConcentrationRank() {
         rankpoint = 0;

@@ -1,8 +1,7 @@
 package mods.flammpfeil.slashblade.slasharts;
 
 import mods.flammpfeil.slashblade.SlashBlade;
-import mods.flammpfeil.slashblade.capability.concentrationrank.ConcentrationRankCapabilityProvider;
-import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
+import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank;
 import mods.flammpfeil.slashblade.entity.EntitySlashEffect;
 import mods.flammpfeil.slashblade.event.SlashBladeEvent;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
@@ -13,7 +12,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.MinecraftForge;
+import net.neoforged.neoforge.common.NeoForge;
 
 public class CircleSlash {
     public static void doCircleSlashAttack(LivingEntity living, float yRot) {
@@ -22,14 +21,16 @@ public class CircleSlash {
         }
 
         ItemStack blade = living.getMainHandItem();
-        if (!blade.getCapability(ItemSlashBlade.BLADESTATE).isPresent()) {
+        var bladeState = ItemSlashBlade.getBladeState(blade);
+        if (bladeState == null) {
             return;
         }
         SlashBladeEvent.DoSlashEvent event = new SlashBladeEvent.DoSlashEvent(blade,
-                blade.getCapability(ItemSlashBlade.BLADESTATE).orElseThrow(NullPointerException::new),
+                bladeState,
                 living, 0, true, 0.325D, KnockBacks.cancel);
         event.setYRot(yRot);
-        if (MinecraftForge.EVENT_BUS.post(event)) {
+        NeoForge.EVENT_BUS.post(event);
+        if (event.isCanceled()) {
             return;
         }
 
@@ -54,8 +55,8 @@ public class CircleSlash {
         jc.setYRot(living.getYRot() - 22.5F + yRot);
         jc.setXRot(0);
 
-        int colorCode = living.getMainHandItem().getCapability(ItemSlashBlade.BLADESTATE)
-                .map(ISlashBladeState::getColorCode).orElse(0xFFFFFF);
+        var mainHandState = ItemSlashBlade.getBladeState(living.getMainHandItem());
+        int colorCode = mainHandState != null ? mainHandState.getColorCode() : 0xFFFFFF;
         jc.setColor(colorCode);
 
         jc.setMute(false);
@@ -65,8 +66,7 @@ public class CircleSlash {
 
         jc.setKnockBack(event.getKnockback());
 
-        living.getCapability(ConcentrationRankCapabilityProvider.RANK_POINT)
-                .ifPresent(rank -> jc.setRank(rank.getRankLevel(living.level().getGameTime())));
+        jc.setRank(living.getData(CapabilityConcentrationRank.RANK_POINT).getRankLevel(living.level().getGameTime()));
 
         living.level().addFreshEntity(jc);
     }

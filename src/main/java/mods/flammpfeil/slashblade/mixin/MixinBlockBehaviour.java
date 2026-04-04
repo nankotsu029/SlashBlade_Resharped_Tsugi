@@ -44,8 +44,7 @@ public class MixinBlockBehaviour {
             return;
         }
 
-        callback.setReturnValue(Blocks.SCAFFOLDING.getCollisionShape(Blocks.SCAFFOLDING.defaultBlockState(), p_60743_,
-                p_60744_, p_60745_));
+        callback.setReturnValue(Blocks.SCAFFOLDING.defaultBlockState().getCollisionShape(p_60743_, p_60744_, p_60745_));
         callback.cancel();
     }
 
@@ -57,8 +56,7 @@ public class MixinBlockBehaviour {
             return;
         }
 
-        callback.setReturnValue(Blocks.SCAFFOLDING.getVisualShape(Blocks.SCAFFOLDING.defaultBlockState(), p_60743_,
-                p_60744_, p_60745_));
+        callback.setReturnValue(Blocks.SCAFFOLDING.defaultBlockState().getVisualShape(p_60743_, p_60744_, p_60745_));
         callback.cancel();
     }
 

@@ -1,5 +1,7 @@
 package mods.flammpfeil.slashblade.entity;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
+// TODO(neoforge-1.21.1): Rewrite this class to the NeoForge payload API; old Forge networking types remain.
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.ability.StunManager;
@@ -19,6 +21,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -35,23 +38,21 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.*;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.entity.PartEntity;
-import net.minecraftforge.network.NetworkHooks;
-import net.minecraftforge.network.PlayMessages;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.CommonHooks;
+import net.neoforged.neoforge.entity.PartEntity;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -110,21 +111,21 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
         // this.setGlowing(true);
     }
 
-    public static EntityAbstractSummonedSword createInstance(PlayMessages.SpawnEntity packet, Level worldIn) {
+    public static EntityAbstractSummonedSword createInstance(Level worldIn) {
         return new EntityAbstractSummonedSword(SlashBlade.RegistryEvents.SummonedSword, worldIn);
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(COLOR, 0x3333FF);
-        this.entityData.define(FLAGS, 0);
-        this.entityData.define(HIT_ENTITY_ID, -1);
-        this.entityData.define(OFFSET_YAW, 0f);
-        this.entityData.define(ROLL, 0f);
-        this.entityData.define(PIERCE, (byte) 0);
-        this.entityData.define(MODEL, "");
-        this.entityData.define(DELAY, 10);
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(COLOR, 0x3333FF);
+        builder.define(FLAGS, 0);
+        builder.define(HIT_ENTITY_ID, -1);
+        builder.define(OFFSET_YAW, 0f);
+        builder.define(ROLL, 0f);
+        builder.define(PIERCE, (byte) 0);
+        builder.define(MODEL, "");
+        builder.define(DELAY, 10);
     }
 
     @Override
@@ -154,8 +155,8 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
     }
 
     @Override
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
+    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket(@NotNull ServerEntity serverEntity) {
+        return super.getAddEntityPacket(serverEntity);
     }
 
     @Override
@@ -189,8 +190,7 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
 
     @Override
     @OnlyIn(Dist.CLIENT)
-    public void lerpTo(double x, double y, double z, float yaw, float pitch, int posRotationIncrements,
-                       boolean teleport) {
+    public void lerpTo(double x, double y, double z, float yaw, float pitch, int posRotationIncrements) {
         this.setPos(x, y, z);
         this.setRot(yaw, pitch);
     }
@@ -371,7 +371,7 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
                 }
 
                 if (raytraceresult != null && !(disallowedHitBlock && raytraceresult.getType() == HitResult.Type.BLOCK)
-                        && !net.minecraftforge.event.ForgeEventFactory.onProjectileImpact(this, raytraceresult)) {
+                        && !net.neoforged.neoforge.event.EventHooks.onProjectileImpact(this, raytraceresult)) {
                     this.onHit(raytraceresult);
                     this.hasImpulse = true;
                 }
@@ -493,7 +493,7 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
         Entity targetEntity = entityHitResult.getEntity();
 
         SlashBladeEvent.SummonedSwordOnHitEntityEvent event = new SlashBladeEvent.SummonedSwordOnHitEntityEvent(this, targetEntity);
-        MinecraftForge.EVENT_BUS.post(event);
+        NeoForge.EVENT_BUS.post(event);
 
         int i = Mth.ceil(this.getDamage());
         if (this.getPierce() > 0) {
@@ -530,7 +530,7 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
 
         int fireTime = targetEntity.getRemainingFireTicks();
         if (this.isOnFire() && !(targetEntity instanceof EnderMan)) {
-            targetEntity.setSecondsOnFire(5);
+            targetEntity.igniteForSeconds(5);
         }
 
         // todo: attack manager
@@ -555,8 +555,7 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
                 }
 
                 if (!this.level().isClientSide() && shooter instanceof LivingEntity) {
-                    EnchantmentHelper.doPostHurtEffects(targetLivingEntity, shooter);
-                    EnchantmentHelper.doPostDamageEffects((LivingEntity) shooter, targetLivingEntity);
+                    // TODO(neoforge-1.21.1): Restore projectile enchantment post-hit hooks with the 1.21 combat API.
                 }
 
                 // this.arrowHit(targetLivingEntity);
@@ -635,7 +634,8 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
     }
 
     public List<MobEffectInstance> getPotionEffects() {
-        List<MobEffectInstance> effects = PotionUtils.getAllEffects(this.getPersistentData());
+        // TODO(neoforge-1.21.1): Port lingering potion payload storage to PotionContents/Data Components.
+        List<MobEffectInstance> effects = new ArrayList<>();
 
         if (effects.isEmpty()) {
             effects.add(new MobEffectInstance(MobEffects.POISON, 1, 1));
@@ -679,9 +679,9 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
 
     public void affectEntity(LivingEntity focusEntity, List<MobEffectInstance> effects, double factor) {
         for (MobEffectInstance effectinstance : getPotionEffects()) {
-            MobEffect effect = effectinstance.getEffect();
-            if (effect.isInstantenous()) {
-                effect.applyInstantenousEffect(this, this.getShooter(), focusEntity, effectinstance.getAmplifier(),
+            var effect = effectinstance.getEffect();
+            if (effect.value().isInstantenous()) {
+                effect.value().applyInstantenousEffect(this, this.getShooter(), focusEntity, effectinstance.getAmplifier(),
                         factor);
             } else {
                 int duration = (int) (factor * (double) effectinstance.getDuration() + 0.5D);
@@ -755,19 +755,17 @@ public class EntityAbstractSummonedSword extends Projectile implements IShootabl
         return name;
     }
 
-    private static final ResourceLocation defaultModel = new ResourceLocation(defaultModelName + ".obj");
-    public LazyOptional<ResourceLocation> modelLoc = LazyOptional
-            .of(() -> new ResourceLocation(getModelName() + ".obj"));
-    private static final ResourceLocation defaultTexture = new ResourceLocation(defaultModelName + ".png");
-    public LazyOptional<ResourceLocation> textureLoc = LazyOptional
-            .of(() -> new ResourceLocation(getModelName() + ".png"));
+    private static final ResourceLocation defaultModel = ResourceLocation.parse(defaultModelName + ".obj");
+    private static final ResourceLocation defaultTexture = ResourceLocation.parse(defaultModelName + ".png");
 
     public ResourceLocation getModelLoc() {
-        return modelLoc.orElse(defaultModel);
+        ResourceLocation modelLoc = ResourceLocation.tryParse(getModelName() + ".obj");
+        return modelLoc != null ? modelLoc : defaultModel;
     }
 
     public ResourceLocation getTextureLoc() {
-        return textureLoc.orElse(defaultTexture);
+        ResourceLocation textureLoc = ResourceLocation.tryParse(getModelName() + ".png");
+        return textureLoc != null ? textureLoc : defaultTexture;
     }
 
     @Override

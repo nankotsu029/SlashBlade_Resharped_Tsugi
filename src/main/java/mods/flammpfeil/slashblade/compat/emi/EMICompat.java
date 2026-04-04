@@ -9,8 +9,10 @@ import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.recipe.SlashBladeSmithingRecipe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeInput;
+import net.minecraft.world.item.crafting.SmithingRecipe;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Blocks;
 
@@ -36,11 +38,13 @@ public class EMICompat implements EmiPlugin {
 
         // 注册SlashBlade锻造配方
         HashSet<ResourceLocation> vanillaSmithing = new HashSet<>();
-        List<SlashBladeSmithingRecipe> smithingRecipes = findRecipesByType(RecipeType.SMITHING).stream()
-                .filter(r -> r instanceof SlashBladeSmithingRecipe).map(r -> (SlashBladeSmithingRecipe) r).toList();
-        for (SlashBladeSmithingRecipe recipe : smithingRecipes) {
-            registry.addRecipe(new SlashBladeSmithingEmiRecipe(recipe));
-            vanillaSmithing.add(recipe.getId());
+        List<RecipeHolder<SmithingRecipe>> smithingRecipes = findRecipesByType(RecipeType.SMITHING).stream()
+                .filter(r -> r.value() instanceof SlashBladeSmithingRecipe)
+                .toList();
+        for (RecipeHolder<SmithingRecipe> holder : smithingRecipes) {
+            SlashBladeSmithingRecipe recipe = (SlashBladeSmithingRecipe) holder.value();
+            registry.addRecipe(new SlashBladeSmithingEmiRecipe(holder.id(), recipe));
+            vanillaSmithing.add(holder.id());
         }
         registry.removeRecipes(emiRecipe -> vanillaSmithing.contains(emiRecipe.getId()) && !(emiRecipe instanceof SlashBladeSmithingEmiRecipe));
 
@@ -50,7 +54,7 @@ public class EMICompat implements EmiPlugin {
 
     }
 
-    private static <C extends Container, T extends Recipe<C>> List<T> findRecipesByType(RecipeType<T> type) {
+    private static <I extends RecipeInput, T extends Recipe<I>> List<RecipeHolder<T>> findRecipesByType(RecipeType<T> type) {
         Minecraft instance = Minecraft.getInstance();
         if (instance.level != null) {
             return instance.level.getRecipeManager().getAllRecipesFor(type);

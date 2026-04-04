@@ -1,6 +1,7 @@
 package mods.flammpfeil.slashblade.ability;
 
 import mods.flammpfeil.slashblade.capability.inputstate.CapabilityInputState;
+import mods.flammpfeil.slashblade.capability.slashblade.SlashBladeState;
 import mods.flammpfeil.slashblade.event.handler.InputCommandEvent;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.util.InputCommand;
@@ -16,12 +17,12 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.entity.PartEntity;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.client.event.RenderFrameEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.entity.PartEntity;
+import net.neoforged.bus.api.SubscribeEvent;
 
 import java.util.Comparator;
 import java.util.List;
@@ -40,12 +41,11 @@ public class LockOnManager {
     }
 
     public void register() {
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
     @SubscribeEvent
     public void onInputChange(InputCommandEvent event) {
-
 
         ServerPlayer player = event.getEntity();
         // set target
@@ -101,17 +101,13 @@ public class LockOnManager {
 
         }
 
-        stack.getCapability(ItemSlashBlade.BLADESTATE).ifPresent(s -> s.setTargetEntityId(targetEntity));
-
+        final Entity finalTarget = targetEntity;
+        ItemSlashBlade.updateBladeState(stack, s -> s.setTargetEntityId(finalTarget));
     }
 
     @OnlyIn(Dist.CLIENT)
     @SubscribeEvent
-    public void onEntityUpdate(TickEvent.RenderTickEvent event) {
-        if (event.phase != TickEvent.Phase.START) {
-            return;
-        }
-
+    public void onEntityUpdate(RenderFrameEvent.Pre event) {
         final Minecraft mcinstance = Minecraft.getInstance();
         if (mcinstance.player == null) {
             return;
@@ -124,8 +120,8 @@ public class LockOnManager {
             return;
         }
 
-        stack.getCapability(ItemSlashBlade.BLADESTATE).ifPresent(s -> {
-
+        SlashBladeState s = ItemSlashBlade.getBladeState(stack);
+        if (s != null) {
             Entity target = s.getTargetEntity(player.level());
 
             if (target == null) {
@@ -138,12 +134,13 @@ public class LockOnManager {
             if (!player.level().isClientSide()) {
                 return;
             }
-            if (player.getCapability(CapabilityInputState.INPUT_STATE)
-                    .filter(input -> input.getCommands().contains(InputCommand.SNEAK)).isEmpty()) {
+
+            var inputState = player.getData(CapabilityInputState.INPUT_STATE);
+            if (!inputState.getCommands().contains(InputCommand.SNEAK)) {
                 return;
             }
 
-            float partialTicks = mcinstance.getFrameTime();
+            float partialTicks = mcinstance.getTimer().getGameTimeDeltaPartialTick(true);
 
             float oldYawHead = player.yHeadRot;
             float oldYawOffset = player.yBodyRot;
@@ -171,7 +168,7 @@ public class LockOnManager {
             player.yHeadRotO = prevYawHead;
             player.yRotO = prevYaw;
             player.xRotO = prevPitch;
-        });
+        }
     }
 
 }

@@ -1,5 +1,8 @@
 package mods.flammpfeil.slashblade.data.builtin;
 
+// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
+// TODO(neoforge-1.21.1): Replace remaining ForgeRegistries references with BuiltInRegistries, Registries, or NeoForgeRegistries as appropriate.
+// TODO(neoforge-1.21.1): Replace ForgeRegistries.ENCHANTMENTS with a RegistryAccess/Registries.ENCHANTMENT lookup.
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.client.renderer.CarryType;
 import mods.flammpfeil.slashblade.item.SwordType;
@@ -9,12 +12,11 @@ import mods.flammpfeil.slashblade.registry.slashblade.EnchantmentDefinition;
 import mods.flammpfeil.slashblade.registry.slashblade.PropertiesDefinition;
 import mods.flammpfeil.slashblade.registry.slashblade.RenderDefinition;
 import mods.flammpfeil.slashblade.registry.slashblade.SlashBladeDefinition;
-import net.minecraft.data.worldgen.BootstapContext;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.data.worldgen.BootstrapContext;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.commons.compress.utils.Lists;
 
 import java.util.List;
@@ -52,7 +54,7 @@ public class SlashBladeBuiltInRegistry {
     public static final ResourceKey<SlashBladeDefinition> DOUTANUKI = register("doutanuki");
     public static final ResourceKey<SlashBladeDefinition> KOSEKI = register("koseki");
 
-    public static void registerAll(BootstapContext<SlashBladeDefinition> bootstrap) {
+    public static void registerAll(BootstrapContext<SlashBladeDefinition> bootstrap) {
         bootstrap.register(KOSEKI,
                 new SlashBladeDefinition(SlashBlade.prefix("koseki"),
                         RenderDefinition.Builder
@@ -69,7 +71,7 @@ public class SlashBladeBuiltInRegistry {
                                 .slashArtsType(SlashArtsRegistry.DRIVE_VERTICAL.getId())
                                 .addSpecialEffect(SpecialEffectsRegistry.WITHER_EDGE.getId())
                                 .build(),
-                        List.of(new EnchantmentDefinition(getEnchantmentID(Enchantments.POWER_ARROWS), 2))));
+                        List.of(new EnchantmentDefinition(getEnchantmentID(Enchantments.POWER), 2))));
 
         bootstrap.register(SABIGATANA,
                 new SlashBladeDefinition(SlashBlade.prefix("sabigatana"),
@@ -258,7 +260,7 @@ public class SlashBladeBuiltInRegistry {
                         new EnchantmentDefinition(getEnchantmentID(Enchantments.BANE_OF_ARTHROPODS), 2),
                         new EnchantmentDefinition(getEnchantmentID(Enchantments.UNBREAKING), 3),
                         new EnchantmentDefinition(getEnchantmentID(Enchantments.FIRE_ASPECT), 2),
-                        new EnchantmentDefinition(getEnchantmentID(Enchantments.MOB_LOOTING), 3))));
+                        new EnchantmentDefinition(getEnchantmentID(Enchantments.LOOTING), 3))));
 
         bootstrap.register(YAMATO,
                 new SlashBladeDefinition(SlashBlade.prefix("yamato"),
@@ -269,8 +271,8 @@ public class SlashBladeBuiltInRegistry {
                         PropertiesDefinition.Builder.newInstance().baseAttackModifier(7.0F)
                                 .defaultSwordType(List.of(SwordType.BEWITCHED)).build(),
                         List.of(new EnchantmentDefinition(getEnchantmentID(Enchantments.SOUL_SPEED), 2),
-                                new EnchantmentDefinition(getEnchantmentID(Enchantments.POWER_ARROWS), 5),
-                                new EnchantmentDefinition(getEnchantmentID(Enchantments.FALL_PROTECTION), 4))));
+                                new EnchantmentDefinition(getEnchantmentID(Enchantments.POWER), 5),
+                                new EnchantmentDefinition(getEnchantmentID(Enchantments.FEATHER_FALLING), 4))));
 
         bootstrap.register(YAMATO_BROKEN,
                 new SlashBladeDefinition(SlashBlade.prefix("yamato"),
@@ -317,8 +319,8 @@ public class SlashBladeBuiltInRegistry {
 
     }
 
-    private static ResourceLocation getEnchantmentID(Enchantment enchantment) {
-        return ForgeRegistries.ENCHANTMENTS.getKey(enchantment);
+    private static ResourceLocation getEnchantmentID(ResourceKey<Enchantment> enchantment) {
+        return enchantment.location();
     }
 
     private static ResourceKey<SlashBladeDefinition> register(String id) {

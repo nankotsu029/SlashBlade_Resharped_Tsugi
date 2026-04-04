@@ -11,8 +11,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.eventbus.api.Cancelable;
-import net.minecraftforge.eventbus.api.Event;
+import net.neoforged.bus.api.Event;
+import net.neoforged.bus.api.ICancellableEvent;
 
 public abstract class SlashBladeEvent extends Event {
     private final ItemStack blade;
@@ -31,8 +31,7 @@ public abstract class SlashBladeEvent extends Event {
         return state;
     }
 
-    @Cancelable
-    public static class BreakEvent extends SlashBladeEvent {
+    public static class BreakEvent extends SlashBladeEvent implements ICancellableEvent {
         public BreakEvent(ItemStack blade, ISlashBladeState state) {
             super(blade, state);
         }
@@ -133,8 +132,7 @@ public abstract class SlashBladeEvent extends Event {
         }
     }
 
-    @Cancelable
-    public static class BladeStandAttackEvent extends SlashBladeEvent {
+    public static class BladeStandAttackEvent extends SlashBladeEvent implements ICancellableEvent {
         private final BladeStandEntity bladeStand;
         private final DamageSource damageSource;
 
@@ -168,8 +166,7 @@ public abstract class SlashBladeEvent extends Event {
 
     }
 
-    @Cancelable
-    public static class HitEvent extends SlashBladeEvent {
+    public static class HitEvent extends SlashBladeEvent implements ICancellableEvent {
         private final LivingEntity target;
         private final LivingEntity user;
 
@@ -189,8 +186,7 @@ public abstract class SlashBladeEvent extends Event {
 
     }
 
-    @Cancelable
-    public static class UpdateEvent extends SlashBladeEvent {
+    public static class UpdateEvent extends SlashBladeEvent implements ICancellableEvent {
         private final Level level;
         private final Entity entity;
         private final int itemSlot;
@@ -223,8 +219,7 @@ public abstract class SlashBladeEvent extends Event {
 
     }
 
-    @Cancelable
-    public static class DoSlashEvent extends SlashBladeEvent {
+    public static class DoSlashEvent extends SlashBladeEvent implements ICancellableEvent {
         private final LivingEntity user;
         private float roll;
         private boolean critical;
@@ -288,8 +283,7 @@ public abstract class SlashBladeEvent extends Event {
 
     }
 
-    @Cancelable
-    public static class ChargeActionEvent extends Event {
+    public static class ChargeActionEvent extends Event implements ICancellableEvent {
         private final LivingEntity entityLiving;
         private final int elapsed;
         private final ISlashBladeState state;

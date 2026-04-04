@@ -1,5 +1,4 @@
 package mods.flammpfeil.slashblade.client;
-
 import mods.flammpfeil.slashblade.SlashBlade;
 import mods.flammpfeil.slashblade.client.renderer.LockonCircleRender;
 import mods.flammpfeil.slashblade.client.renderer.gui.RankRenderer;
@@ -13,7 +12,7 @@ import mods.flammpfeil.slashblade.event.client.SneakingMotionCanceller;
 import mods.flammpfeil.slashblade.event.client.UserPoseOverrider;
 import mods.flammpfeil.slashblade.registry.SlashBladeItems;
 import mods.flammpfeil.slashblade.registry.slashblade.SlashBladeDefinition;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.item.ClampedItemPropertyFunction;
@@ -23,30 +22,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.event.EntityRenderersEvent;
-import net.minecraftforge.client.event.ModelEvent;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.TextureAtlasStitchedEvent;
+import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import org.apache.logging.log4j.util.LoaderUtil;
 
 import java.util.Objects;
 
-@Mod.EventBusSubscriber(value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
-@OnlyIn(Dist.CLIENT)
 public class ClientHandler {
+    private static final ResourceLocation USER_PROPERTY = SlashBlade.prefix("user");
 
-    @SubscribeEvent
     public static void doClientStuff(final FMLClientSetupEvent event) {
-        MinecraftForge.EVENT_BUS.register(BladeModelManager.getInstance());
-        MinecraftForge.EVENT_BUS.register(BladeMotionManager.getInstance());
-
         SneakingMotionCanceller.getInstance().register();
 
         if (LoaderUtil.isClassAvailable("dev.kosmx.playerAnim.api.layered.AnimationStack")) {
@@ -60,31 +51,31 @@ public class ClientHandler {
 
         RankRenderer.getInstance().register();
 
-        ItemProperties.register(SlashBladeItems.SLASHBLADE.get(), new ResourceLocation("slashblade:user"),
+        ItemProperties.register(SlashBladeItems.SLASHBLADE.get(), USER_PROPERTY,
                 (ClampedItemPropertyFunction) (p_174564_, p_174565_, p_174566_, p_174567_) -> {
                     BladeModel.user = p_174566_;
                     return 0;
                 });
 
-        ItemProperties.register(SlashBladeItems.SLASHBLADE_BAMBOO.get(), new ResourceLocation("slashblade:user"),
+        ItemProperties.register(SlashBladeItems.SLASHBLADE_BAMBOO.get(), USER_PROPERTY,
                 (ClampedItemPropertyFunction) (p_174564_, p_174565_, p_174566_, p_174567_) -> {
                     BladeModel.user = p_174566_;
                     return 0;
                 });
 
-        ItemProperties.register(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get(), new ResourceLocation("slashblade:user"),
+        ItemProperties.register(SlashBladeItems.SLASHBLADE_SILVERBAMBOO.get(), USER_PROPERTY,
                 (ClampedItemPropertyFunction) (p_174564_, p_174565_, p_174566_, p_174567_) -> {
                     BladeModel.user = p_174566_;
                     return 0;
                 });
 
-        ItemProperties.register(SlashBladeItems.SLASHBLADE_WHITE.get(), new ResourceLocation("slashblade:user"),
+        ItemProperties.register(SlashBladeItems.SLASHBLADE_WHITE.get(), USER_PROPERTY,
                 (ClampedItemPropertyFunction) (p_174564_, p_174565_, p_174566_, p_174567_) -> {
                     BladeModel.user = p_174566_;
                     return 0;
                 });
 
-        ItemProperties.register(SlashBladeItems.SLASHBLADE_WOOD.get(), new ResourceLocation("slashblade:user"),
+        ItemProperties.register(SlashBladeItems.SLASHBLADE_WOOD.get(), USER_PROPERTY,
                 (ClampedItemPropertyFunction) (p_174564_, p_174565_, p_174566_, p_174567_) -> {
                     BladeModel.user = p_174566_;
                     return 0;
@@ -92,12 +83,15 @@ public class ClientHandler {
 
     }
 
-    @SubscribeEvent
+    public static void onTextureAtlasStitched(TextureAtlasStitchedEvent event) {
+        BladeMotionManager.getInstance().reload(event);
+    }
+
     public static void onCreativeTagBuilding(BuildCreativeModeTabContentsEvent event) {
         SlashBlade.getSlashBladeDefinitionRegistry(event.getParameters().holders())
                 .listElements()
                 .sorted(SlashBladeDefinition.COMPARATOR).forEach(entry -> {
-                    if (!event.getTabKey().location().equals(entry.get().getCreativeGroup())) {
+                    if (!event.getTabKey().location().equals(entry.value().getCreativeGroup())) {
                         return;
                     }
 
@@ -107,14 +101,12 @@ public class ClientHandler {
                 });
     }
 
-    @SubscribeEvent
     public static void registerKeyMapping(RegisterKeyMappingsEvent event) {
         event.register(SlashBladeKeyMappings.KEY_SPECIAL_MOVE);
         event.register(SlashBladeKeyMappings.KEY_SUMMON_BLADE);
     }
 
-    @SubscribeEvent
-    public static void Baked(final ModelEvent.ModifyBakingResult event) {
+    public static void bakeModels(final ModelEvent.ModifyBakingResult event) {
         bakeBlade(SlashBladeItems.SLASHBLADE.get(), event);
         bakeBlade(SlashBladeItems.SLASHBLADE_WHITE.get(), event);
         bakeBlade(SlashBladeItems.SLASHBLADE_WOOD.get(), event);
@@ -123,20 +115,18 @@ public class ClientHandler {
     }
 
     public static void bakeBlade(Item blade, final ModelEvent.ModifyBakingResult event) {
-        ModelResourceLocation loc = new ModelResourceLocation(Objects.requireNonNull(ForgeRegistries.ITEMS.getKey(blade)), "inventory");
+        ModelResourceLocation loc = new ModelResourceLocation(Objects.requireNonNull(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(blade)), "inventory");
         BladeModel model = new BladeModel(event.getModels().get(loc), event.getModelBakery());
         event.getModels().put(loc, model);
     }
 
-    @SubscribeEvent
     public static void addLayers(EntityRenderersEvent.AddLayers event) {
-        addPlayerLayer(event, "default");
-        addPlayerLayer(event, "slim");
+        for (PlayerSkin.Model skin : event.getSkins()) {
+            addPlayerLayer(event, skin);
+        }
 
-        Minecraft mc = Minecraft.getInstance();
-        // 畜生forge给的什么破事件还带强制转换的, 必须得我这样写，好不优雅
-        for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
-            addEntityLayer(event, mc.getEntityRenderDispatcher().renderers.get(type));
+        for (EntityType<?> type : event.getEntityTypes()) {
+            addEntityLayer(event.getRenderer(type));
         }
 
 //        addEntityLayer(event, EntityType.ZOMBIE);
@@ -153,7 +143,7 @@ public class ClientHandler {
     }
 
     @SuppressWarnings({"unchecked"})
-    public static void addPlayerLayer(EntityRenderersEvent.AddLayers evt, String skin) {
+    public static void addPlayerLayer(EntityRenderersEvent.AddLayers evt, PlayerSkin.Model skin) {
         EntityRenderer<? extends Player> renderer = evt.getSkin(skin);
 
         if (renderer instanceof LivingEntityRenderer livingRenderer) {
@@ -162,7 +152,7 @@ public class ClientHandler {
     }
 
     @SuppressWarnings({"unchecked"})
-    private static void addEntityLayer(EntityRenderersEvent.AddLayers evt, EntityRenderer<?> renderer) {
+    private static void addEntityLayer(EntityRenderer<?> renderer) {
         if (renderer instanceof LivingEntityRenderer livingRenderer) {
             livingRenderer.addLayer(new LayerMainBlade<>(livingRenderer));
         }

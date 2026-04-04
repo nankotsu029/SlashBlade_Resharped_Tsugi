@@ -76,8 +76,10 @@ public class ItemSlashBlade extends SwordItem {
 
     /** DataComponentType for per-stack blade state. Use stack.get(BLADESTATE) to read (nullable). */
     public static final DataComponentType<SlashBladeState> BLADESTATE = ModDataComponents.BLADE_STATE.get();
-    /** AttachmentType for per-entity input state. Use entity.getData(INPUT_STATE) to read (never null). */
-    public static final AttachmentType<InputState> INPUT_STATE = ModAttachments.INPUT_STATE.get();
+    /** AttachmentType for per-entity input state. Resolve lazily to avoid touching the registry during item class init. */
+    public static AttachmentType<InputState> inputStateAttachment() {
+        return ModAttachments.INPUT_STATE.get();
+    }
 
     public static final List<ResourceKey<Enchantment>> exEnchantment = List.of(
             Enchantments.SOUL_SPEED,
@@ -218,7 +220,7 @@ public class ItemSlashBlade extends SwordItem {
         SlashBladeState bladeState = getBladeState(itemstack);
         boolean result = false;
         if (bladeState != null) {
-            InputState inputState = playerIn.getData(INPUT_STATE);
+            InputState inputState = playerIn.getData(inputStateAttachment());
             inputState.getCommands().add(InputCommand.R_CLICK);
 
             ResourceLocation combo = bladeState.progressCombo(playerIn);
@@ -242,7 +244,7 @@ public class ItemSlashBlade extends SwordItem {
             return false;
         }
 
-        InputState inputState = playerIn.getData(INPUT_STATE);
+        InputState inputState = playerIn.getData(inputStateAttachment());
         inputState.getCommands().add(InputCommand.L_CLICK);
         bladeState.progressCombo(playerIn);
         inputState.getCommands().remove(InputCommand.L_CLICK);
@@ -510,7 +512,7 @@ public class ItemSlashBlade extends SwordItem {
                 }
             }
             if (entityIn instanceof LivingEntity living) {
-                living.getData(INPUT_STATE).getScheduler().onTick(living);
+                living.getData(inputStateAttachment()).getScheduler().onTick(living);
 
                 ResourceLocation loc = state.resolvCurrentComboState(living);
                 ComboState cs = ComboStateRegistry.REGISTRY.get(loc) != null

@@ -75,7 +75,7 @@ public class Guard {
         if (!victim.onGround()) {
             return;
         }
-        InputState input = victim.getData(ItemSlashBlade.INPUT_STATE);
+        InputState input = victim.getData(ItemSlashBlade.inputStateAttachment());
 
         // command check
         InputCommand targetCommand = InputCommand.SNEAK;

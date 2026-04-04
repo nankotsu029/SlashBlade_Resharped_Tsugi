@@ -452,4 +452,16 @@ public class SlashBladeState implements ISlashBladeState {
         this.isEmpty = false;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if(!(o instanceof SlashBladeState other)) return false;
+        return  this.serializeNBT().equals(other.serializeNBT());
+    }
+
+    @Override
+    public int hashCode() {
+        return  this.serializeNBT().hashCode();
+    }
+
 }

@@ -14,15 +14,19 @@ import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.registry.SlashBladeItems;
 import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import net.minecraft.Util;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Holder.Reference;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.Unbreakable;
+import net.minecraft.world.item.enchantment.Enchantment;
 import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
@@ -108,11 +112,8 @@ public class SlashBladeDefinition {
         return enchantments;
     }
 
-    public ItemStack getBlade() {
-        return getBlade(getItem());
-    }
 
-    public ItemStack getBlade(Item bladeItem) {
+    public ItemStack getBlade(Item bladeItem, @Nullable RegistryAccess registryAccess) {
 
         var preEvent = new SlashBladeRegistryEvent.Pre(this);
         NeoForge.EVENT_BUS.post(preEvent);
@@ -157,7 +158,12 @@ public class SlashBladeDefinition {
         ItemSlashBlade.setBladeState(result, state);
 
         for (var instance : this.enchantments) {
-            var enchantment = EnchantmentCompat.resolve(instance.getEnchantmentID());
+            Holder<Enchantment> enchantment = null;
+            if (registryAccess != null) {
+                enchantment = EnchantmentCompat.resolve(registryAccess, ResourceKey.create(Registries.ENCHANTMENT, instance.getEnchantmentID()));
+            } else {
+                enchantment = EnchantmentCompat.resolve(instance.getEnchantmentID());
+            }
             if (enchantment != null) {
                 result.enchant(enchantment, instance.getEnchantmentLevel());
             }
@@ -169,6 +175,13 @@ public class SlashBladeDefinition {
         var postRegistry = new SlashBladeRegistryEvent.Post(this, result);
         NeoForge.EVENT_BUS.post(postRegistry);
         return postRegistry.getBlade();
+    }
+    public ItemStack getBlade() {
+        return getBlade(getItem(), null);
+    }
+
+    public ItemStack getBlade(Item bladeItem) {
+        return getBlade(bladeItem, null);
     }
 
     public Item getItem() {

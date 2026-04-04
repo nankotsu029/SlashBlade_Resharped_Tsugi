@@ -10,13 +10,17 @@ import mods.flammpfeil.slashblade.client.renderer.entity.SummonedSwordRenderer;
 import mods.flammpfeil.slashblade.client.renderer.event.PreloadedModelEvent;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 
 @Mod(value = SlashBlade.MODID, dist = Dist.CLIENT)
-public class SlashBladeClient {
-    public SlashBladeClient(IEventBus modBus, ModContainer container) {
+public final class SlashBladeClient {
+
+    public SlashBladeClient(final IEventBus modBus) {
+        registerModBusListeners(modBus);
+    }
+
+    private static void registerModBusListeners(final IEventBus modBus) {
         modBus.addListener(ClientHandler::doClientStuff);
         modBus.addListener(ClientHandler::registerKeyMapping);
         modBus.addListener(ClientHandler::bakeModels);
@@ -27,7 +31,7 @@ public class SlashBladeClient {
         modBus.addListener(SlashBladeClient::registerEntityRenderers);
     }
 
-    private static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
+    private static void registerEntityRenderers(final EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(SlashBlade.RegistryEvents.SummonedSword, SummonedSwordRenderer::new);
         event.registerEntityRenderer(SlashBlade.RegistryEvents.StormSwords, SummonedSwordRenderer::new);
         event.registerEntityRenderer(SlashBlade.RegistryEvents.SpiralSwords, SummonedSwordRenderer::new);

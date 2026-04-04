@@ -36,7 +36,8 @@ public class LockonCircleRender {
     }
 
     public void register() {
-        NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.addListener(RenderLivingEvent.Pre.class, this::onRenderLiving);
+//        NeoForge.EVENT_BUS.register(this);
     }
 
     static final ResourceLocation modelLoc = ResourceLocation.fromNamespaceAndPath("slashblade", "model/util/lockon.obj");

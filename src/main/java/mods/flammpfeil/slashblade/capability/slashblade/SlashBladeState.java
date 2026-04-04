@@ -116,7 +116,7 @@ public class SlashBladeState implements ISlashBladeState {
                 s.deserializeNBT(tag);
                 return s;
             },
-            s -> s.serializeNBT()
+            ISlashBladeState::serializeNBT
     );
 
     /**

@@ -26,9 +26,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -53,6 +51,9 @@ public class SlashBlade {
         container.registerConfig(ModConfig.Type.COMMON, SlashBladeConfig.COMMON_CONFIG);
 
         modBus.addListener(this::setup);
+        modBus.addListener(RegistryEvents::register);
+        modBus.addListener(RegistryEvents::onEntityAttributeModificationEvent);
+        modBus.addListener(RegistryHandler::onDatapackRegister);
 
         ModAttributes.ATTRIBUTES.register(modBus);
         ModDataComponents.DATA_COMPONENTS.register(modBus);
@@ -102,7 +103,6 @@ public class SlashBlade {
     // You can use EventBusSubscriber to automatically subscribe events on the
     // contained class (this is subscribing to the MOD
     // Event bus for receiving Registry Events)
-    @EventBusSubscriber(modid = MODID)
     public static class RegistryEvents {
 
         public static final ResourceLocation BladeItemEntityLoc = ResourceLocation.fromNamespaceAndPath(SlashBlade.MODID,
@@ -143,7 +143,6 @@ public class SlashBlade {
         public static EntityType<EntityDrive> Drive;
 
 
-        @SubscribeEvent
         public static void register(RegisterEvent event) {
 //            event.register(ForgeRegistries.Keys.ITEMS, helper -> {
 //
@@ -355,7 +354,6 @@ public class SlashBlade {
                     .replace("entity_", "");
         }
 
-        @SubscribeEvent
         public static void onEntityAttributeModificationEvent(final EntityAttributeModificationEvent event) {
             event.add(EntityType.PLAYER, ModAttributes.SLASHBLADE_DAMAGE);
         }

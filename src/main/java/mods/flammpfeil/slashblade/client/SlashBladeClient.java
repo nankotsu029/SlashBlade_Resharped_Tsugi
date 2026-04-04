@@ -13,7 +13,6 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 @Mod(value = SlashBlade.MODID, dist = Dist.CLIENT)
 public class SlashBladeClient {
@@ -23,10 +22,9 @@ public class SlashBladeClient {
         modBus.addListener(ClientHandler::bakeModels);
         modBus.addListener(ClientHandler::addLayers);
         modBus.addListener(ClientHandler::onCreativeTagBuilding);
+        modBus.addListener(ClientHandler::onTextureAtlasStitched);
         modBus.addListener(PreloadedModelEvent::registerResourceLoaders);
         modBus.addListener(SlashBladeClient::registerEntityRenderers);
-
-        NeoForge.EVENT_BUS.addListener(ClientHandler::onTextureAtlasStitched);
     }
 
     private static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {

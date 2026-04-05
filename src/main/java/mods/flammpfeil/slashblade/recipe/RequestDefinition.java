@@ -1,8 +1,5 @@
 package mods.flammpfeil.slashblade.recipe;
 
-// TODO(neoforge-1.21.1): This file still uses Forge-only APIs that need a manual NeoForge rewrite.
-// TODO(neoforge-1.21.1): Replace remaining ForgeRegistries references with BuiltInRegistries, Registries, or NeoForgeRegistries as appropriate.
-// TODO(neoforge-1.21.1): Replace ForgeRegistries.ENCHANTMENTS with a RegistryAccess/Registries.ENCHANTMENT lookup.
 import com.google.common.collect.Lists;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -17,6 +14,8 @@ import mods.flammpfeil.slashblade.registry.slashblade.EnchantmentDefinition;
 import mods.flammpfeil.slashblade.util.EnchantmentCompat;
 import net.minecraft.Util;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
@@ -39,6 +38,16 @@ public record RequestDefinition(ResourceLocation name, int proudSoulCount, int k
                     SwordType.CODEC.listOf().optionalFieldOf("sword_type", Lists.newArrayList())
                             .forGetter(RequestDefinition::defaultType))
             .apply(instance, RequestDefinition::new));
+
+    public static final StreamCodec<RegistryFriendlyByteBuf, RequestDefinition> STREAM_CODEC = StreamCodec.of(
+            (buffer, request) -> request.toNetwork(buffer),
+            RequestDefinition::fromNetwork
+    );
+
+    public RequestDefinition {
+        enchantments = List.copyOf(enchantments);
+        defaultType = List.copyOf(defaultType);
+    }
 
     public static RequestDefinition fromJSON(JsonObject json) {
         return CODEC.parse(JsonOps.INSTANCE, json).resultOrPartial(msg -> SlashBlade.LOGGER.error("Failed to parse : {}", msg)).orElseGet(Builder.newInstance()::build);

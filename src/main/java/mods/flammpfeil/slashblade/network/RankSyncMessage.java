@@ -28,7 +28,6 @@ public record RankSyncMessage(long rawPoint) implements CustomPacketPayload {
         return TYPE;
     }
 
-    @OnlyIn(Dist.CLIENT)
     public static void handle(RankSyncMessage msg, IPayloadContext ctx) {
         ctx.enqueueWork(() -> setPoint(msg.rawPoint()));
     }

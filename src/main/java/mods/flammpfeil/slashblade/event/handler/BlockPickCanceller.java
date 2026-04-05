@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -22,13 +23,13 @@ public class BlockPickCanceller {
     private BlockPickCanceller() {
     }
 
-    public void register() {
-        NeoForge.EVENT_BUS.register(this);
+    public static void register(IEventBus forgeEventBus) {
+        // InputEvent は NeoForge.EVENT_BUS に流れるので、そちらに登録する
+        NeoForge.EVENT_BUS.addListener(BlockPickCanceller::onBlockPick);
     }
 
     @OnlyIn(Dist.CLIENT)
-    @SubscribeEvent
-    public void onBlockPick(InputEvent.InteractionKeyMappingTriggered event) {
+    public static void onBlockPick(InputEvent.InteractionKeyMappingTriggered event) {
         if (!event.isPickBlock()) {
             return;
         }

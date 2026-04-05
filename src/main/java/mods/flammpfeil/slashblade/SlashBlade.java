@@ -4,6 +4,7 @@ import mods.flammpfeil.slashblade.ability.*;
 import mods.flammpfeil.slashblade.data.DataGen;
 import mods.flammpfeil.slashblade.init.ModAttachments;
 import mods.flammpfeil.slashblade.init.ModDataComponents;
+import mods.flammpfeil.slashblade.init.ModIngredientTypes;
 import mods.flammpfeil.slashblade.client.renderer.model.BladeModelManager;
 import mods.flammpfeil.slashblade.entity.*;
 import mods.flammpfeil.slashblade.event.BladeMotionEventBroadcaster;
@@ -29,6 +30,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityAttributeModificationEvent;
@@ -47,10 +49,16 @@ public class SlashBlade {
     // Directly reference a log4j logger.
     public static final Logger LOGGER = LogManager.getLogger();
 
+    private void clientSetup(final FMLClientSetupEvent event) {
+        BlockPickCanceller.register(NeoForge.EVENT_BUS);
+    }
+
     public SlashBlade(IEventBus modBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.COMMON, SlashBladeConfig.COMMON_CONFIG);
 
         modBus.addListener(this::setup);
+        modBus.addListener(this::clientSetup);
+
         modBus.addListener(RegistryEvents::register);
         modBus.addListener(RegistryEvents::onEntityAttributeModificationEvent);
         modBus.addListener(RegistryHandler::onDatapackRegister);
@@ -58,6 +66,7 @@ public class SlashBlade {
         ModAttributes.ATTRIBUTES.register(modBus);
         ModDataComponents.DATA_COMPONENTS.register(modBus);
         ModAttachments.ATTACHMENT_TYPES.register(modBus);
+        ModIngredientTypes.INGREDIENT_TYPES.register(modBus);
         modBus.addListener(NetworkManager::register);
 
         SlashBladeItems.ITEMS.register(modBus);
@@ -84,7 +93,7 @@ public class SlashBlade {
         KillCounter.getInstance().register();
         RankPointHandler.getInstance().register();
         AllowFlightOverrwrite.getInstance().register();
-        BlockPickCanceller.getInstance().register();
+//        BlockPickCanceller.register(NeoForge.EVENT_BUS);
         BladeMotionEventBroadcaster.getInstance().register();
 
         NeoForge.EVENT_BUS.addListener(TargetSelector::onInputChange);

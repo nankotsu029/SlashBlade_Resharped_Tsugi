@@ -35,7 +35,7 @@ public record MotionBroadcastMessage(UUID playerId, String combo) implements Cus
         return TYPE;
     }
 
-    @OnlyIn(Dist.CLIENT)
+//    @OnlyIn(Dist.CLIENT)
     public static void handle(MotionBroadcastMessage msg, IPayloadContext ctx) {
         ctx.enqueueWork(() -> setPoint(msg.playerId(), msg.combo()));
     }

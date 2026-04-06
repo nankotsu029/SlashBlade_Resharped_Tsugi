@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.bladestand.desc"
     },
     "icon": {
-      "item": "slashblade:bladestand_2"
+      "id": "slashblade:bladestand_2"
     },
     "frame": "task"
   },

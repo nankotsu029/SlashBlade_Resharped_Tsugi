@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.jump"}]
     },
     "icon": {
-      "item": "minecraft:leather_boots"
+      "id": "minecraft:leather_boots"
     },
     "frame": "task"
   },

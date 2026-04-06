@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.use"},{"keybind":"key.back"},{"keybind":"key.sneak"}]
     },
     "icon": {
-      "item": "minecraft:feather"
+      "id": "minecraft:feather"
     },
     "frame": "task"
   },

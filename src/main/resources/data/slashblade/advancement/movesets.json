@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.movesets.desc"
     },
     "icon": {
-      "item": "minecraft:command_block"
+      "id": "minecraft:command_block"
     },
     "frame": "task"
   },

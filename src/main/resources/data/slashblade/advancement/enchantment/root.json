@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.exeffect.desc"
     },
     "icon": {
-      "item": "minecraft:enchanted_book"
+      "id": "minecraft:enchanted_book"
     },
     "frame": "task",
     "hidden": true

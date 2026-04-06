@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.exeffect.feather_falling.desc"
     },
     "icon": {
-      "item": "minecraft:feather"
+      "id": "minecraft:feather"
     },
     "frame": "task",
     "hidden": true

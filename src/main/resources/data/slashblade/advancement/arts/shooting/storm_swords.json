@@ -8,7 +8,7 @@
       "with":[{"translate":"key.pickItem"},{"keybind":"key.pickItem"},{"keybind":"key.back"},{"keybind":"key.sneak"}]
     },
     "icon": {
-      "item": "minecraft:cobweb"
+      "id": "minecraft:cobweb"
     },
     "frame": "task"
   },

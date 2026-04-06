@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.use"}]
     },
     "icon": {
-      "item": "minecraft:writable_book"
+      "id": "minecraft:writable_book"
     },
     "frame": "task"
   },

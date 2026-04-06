@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.jump"}]
     },
     "icon": {
-      "item": "minecraft:iron_boots"
+      "id": "minecraft:iron_boots"
     },
     "frame": "task"
   },

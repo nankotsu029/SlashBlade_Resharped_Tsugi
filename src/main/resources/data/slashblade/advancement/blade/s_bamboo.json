@@ -7,7 +7,7 @@
       "translate": "item.slashblade.slashblade_bamboo.desc"
     },
     "icon": {
-      "item": "slashblade:slashblade_bamboo"
+      "id": "slashblade:slashblade_bamboo"
     },
     "frame": "task",
     "hidden": true

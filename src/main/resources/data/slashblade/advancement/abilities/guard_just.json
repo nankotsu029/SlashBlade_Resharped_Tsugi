@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.sneak"}]
     },
     "icon": {
-      "item": "minecraft:diamond_block"
+      "id": "minecraft:diamond_block"
     },
     "frame": "task"
   },

@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.use"},{"keybind":"key.forward"},{"keybind":"key.sneak"}]
     },
     "icon": {
-      "item": "minecraft:redstone"
+      "id": "minecraft:redstone"
     },
     "frame": "task"
   },

@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.refine.desc"
     },
     "icon": {
-      "item": "minecraft:anvil"
+      "id": "minecraft:anvil"
     },
     "frame": "challenge"
   },

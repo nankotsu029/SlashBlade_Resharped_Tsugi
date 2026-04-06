@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.proudsoul"
     },
     "icon": {
-      "item": "slashblade:proudsoul"
+      "id": "slashblade:proudsoul"
     },
     "frame": "task"
   },

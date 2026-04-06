@@ -8,7 +8,7 @@
       "with":[{"translate":"key.pickItem"},{"keybind":"key.pickItem"}]
     },
     "icon": {
-      "item": "minecraft:arrow"
+      "id": "minecraft:arrow"
     },
     "frame": "task"
   },

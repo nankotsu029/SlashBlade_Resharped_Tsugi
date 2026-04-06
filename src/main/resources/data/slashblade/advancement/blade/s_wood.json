@@ -7,7 +7,7 @@
       "translate": "item.slashblade.slashblade_wood.desc"
     },
     "icon": {
-      "item": "slashblade:slashblade_wood"
+      "id": "slashblade:slashblade_wood"
     },
     "frame": "task"
   },

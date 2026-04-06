@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.use"}]
     },
     "icon": {
-      "item": "minecraft:wooden_sword"
+      "id": "minecraft:wooden_sword"
     },
     "frame": "task"
   },

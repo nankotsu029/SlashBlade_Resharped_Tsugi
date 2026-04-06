@@ -7,7 +7,7 @@
       "translate": "item.slashblade.slashblade_white.desc"
     },
     "icon": {
-      "item": "slashblade:slashblade_white"
+      "id": "slashblade:slashblade_white"
       },
     "frame": "task"
   },

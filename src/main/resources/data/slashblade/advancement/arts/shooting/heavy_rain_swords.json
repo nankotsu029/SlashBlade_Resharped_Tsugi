@@ -8,7 +8,7 @@
       "with":[{"translate":"key.pickItem"},{"keybind":"key.pickItem"},{"keybind":"key.back"},{"keybind":"key.forward"},{"keybind":"key.sneak"}]
     },
     "icon": {
-      "item": "minecraft:ghast_tear"
+      "id": "minecraft:ghast_tear"
     },
     "frame": "task"
   },

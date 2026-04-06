@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.proudsoul_trapezohedron"
     },
     "icon": {
-      "item": "slashblade:proudsoul_trapezohedron"
+      "id": "slashblade:proudsoul_trapezohedron"
     },
     "frame": "task"
   },

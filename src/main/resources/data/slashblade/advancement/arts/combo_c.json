@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.use"}]
     },
     "icon": {
-      "item": "minecraft:diamond_sword"
+      "id": "minecraft:diamond_sword"
     },
     "frame": "task"
   },

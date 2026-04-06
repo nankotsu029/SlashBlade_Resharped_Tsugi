@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.slashblade.special_move"}]
     },
     "icon": {
-      "item": "minecraft:feather"
+      "id": "minecraft:feather"
     },
     "frame": "task"
   },

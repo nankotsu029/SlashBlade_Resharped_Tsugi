@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.combo_b_max.desc"
     },
     "icon": {
-      "item": "minecraft:music_disc_11"
+      "id": "minecraft:music_disc_11"
     },
     "frame": "task"
   },

@@ -8,7 +8,7 @@
       "with":[{"keybind":"key.use"},{"keybind":"key.back"},{"keybind":"key.sneak"}]
     },
     "icon": {
-      "item": "minecraft:iron_axe"
+      "id": "minecraft:iron_axe"
     },
     "frame": "task"
   },

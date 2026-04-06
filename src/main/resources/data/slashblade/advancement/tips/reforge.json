@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.reforge.desc"
     },
     "icon": {
-      "item": "minecraft:anvil"
+      "id": "minecraft:anvil"
     },
     "frame": "task"
   },

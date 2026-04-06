@@ -7,7 +7,7 @@
       "translate": "adv.slashblade.exeffect.soul_speed.desc"
     },
     "icon": {
-      "item": "minecraft:clock"
+      "id": "minecraft:clock"
     },
     "frame": "task",
     "hidden": true

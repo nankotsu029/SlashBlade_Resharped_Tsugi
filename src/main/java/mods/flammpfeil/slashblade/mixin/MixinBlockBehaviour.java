@@ -13,56 +13,72 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.EntityCollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(BlockBehaviour.BlockStateBase.class)
-public class MixinBlockBehaviour {
+@Mixin(value = BlockBehaviour.BlockStateBase.class, remap = false)
+public abstract class MixinBlockBehaviour {
 
-    @SuppressWarnings("deprecation")
-    @Inject(at = @At("HEAD"), method = "getCollisionShape(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/phys/shapes/CollisionContext;)Lnet/minecraft/world/phys/shapes/VoxelShape;", cancellable = true)
-    public void getCollisionShape(BlockGetter p_60743_, BlockPos p_60744_, CollisionContext p_60745_,
-                                  CallbackInfoReturnable<VoxelShape> callback) {
-        if (!(asState().is(BlockTags.LEAVES))) {
+    @Unique
+    private BlockState slashblade$self() {
+        return (BlockState) (Object) this;
+    }
+
+    @Inject(
+            method = "getCollisionShape(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/phys/shapes/CollisionContext;)Lnet/minecraft/world/phys/shapes/VoxelShape;",
+            at = @At("HEAD"),
+            cancellable = true,
+            remap = false  // ← 追加
+    )
+    private void slashblade$getCollisionShape(
+            BlockGetter level,
+            BlockPos pos,
+            CollisionContext context,
+            CallbackInfoReturnable<VoxelShape> cir
+    ) {
+        BlockState self = slashblade$self();
+
+        if (!self.is(BlockTags.LEAVES)) {
             return;
         }
-        if (p_60745_.isDescending()) {
+        if (context.isDescending()) {
+            return;
+        }
+        if (!(context instanceof EntityCollisionContext entityContext)) {
+            return;
+        }
+        if (!(entityContext.getEntity() instanceof Player player)) {
             return;
         }
 
-        if (!(p_60745_ instanceof EntityCollisionContext)) {
-            return;
-        }
-        if (!(((EntityCollisionContext) p_60745_).getEntity() instanceof Player)) {
-            return;
-        }
-
-        ItemStack itemStack = ((Player) ((EntityCollisionContext) p_60745_).getEntity()).getMainHandItem();
+        ItemStack itemStack = player.getMainHandItem();
         if (!(itemStack.getItem() instanceof ItemSlashBlade)) {
             return;
         }
 
-        callback.setReturnValue(Blocks.SCAFFOLDING.defaultBlockState().getCollisionShape(p_60743_, p_60744_, p_60745_));
-        callback.cancel();
+        cir.setReturnValue(Blocks.SCAFFOLDING.defaultBlockState().getCollisionShape(level, pos, context));
     }
 
-    @SuppressWarnings("deprecation")
-    @Inject(at = @At("HEAD"), method = "getVisualShape(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/phys/shapes/CollisionContext;)Lnet/minecraft/world/phys/shapes/VoxelShape;", cancellable = true)
-    public void getVisualShape(BlockGetter p_60743_, BlockPos p_60744_, CollisionContext p_60745_,
-                               CallbackInfoReturnable<VoxelShape> callback) {
-        if (!(asState().is(BlockTags.LEAVES))) {
+    @Inject(
+            method = "getVisualShape(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/phys/shapes/CollisionContext;)Lnet/minecraft/world/phys/shapes/VoxelShape;",
+            at = @At("HEAD"),
+            cancellable = true,
+            remap = false  // ← 追加
+    )
+    private void slashblade$getVisualShape(
+            BlockGetter level,
+            BlockPos pos,
+            CollisionContext context,
+            CallbackInfoReturnable<VoxelShape> cir
+    ) {
+        BlockState self = slashblade$self();
+
+        if (!self.is(BlockTags.LEAVES)) {
             return;
         }
 
-        callback.setReturnValue(Blocks.SCAFFOLDING.defaultBlockState().getVisualShape(p_60743_, p_60744_, p_60745_));
-        callback.cancel();
+        cir.setReturnValue(Blocks.SCAFFOLDING.defaultBlockState().getVisualShape(level, pos, context));
     }
-
-    @Shadow
-    protected BlockState asState() {
-        throw new IllegalStateException("Mixin failed to shadow asState()");
-    }
-
 }

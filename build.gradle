@@ -10,7 +10,7 @@ version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = "SlashBladeResharped-Osaru-1.21.1"
+    archivesName = "SlashBladeResharped-Tsugi-1.21.1"
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -18,12 +18,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
 
 neoForge {
-    // gradle.properties で 'neo_version' を指定してください
     version = project.neo_version
-
-    // Access Transformer はデフォルト配置（src/main/resources/META-INF/accesstransformer.cfg）なら自動認識されます
-    // 明示的に指定する場合は以下のコメントアウトを外します
-    // accessTransformers.add('src/main/resources/META-INF/accesstransformer.cfg')
 
     runs {
         client {
@@ -44,7 +39,12 @@ neoForge {
 
         data {
             data()
-            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+            programArguments.addAll(
+                    '--mod', project.mod_id,
+                    '--all',
+                    '--output', file('src/generated/resources/').getAbsolutePath(),
+                    '--existing', file('src/main/resources/').getAbsolutePath()
+            )
         }
 
         configureEach {
@@ -60,82 +60,86 @@ neoForge {
     }
 }
 
-// データジェネレーターの出力先をリソースに含める
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
     mavenLocal()
+
     flatDir {
         dir 'libs'
     }
+
     maven {
         name "KosmX's maven"
         url 'https://maven.kosmx.dev/'
     }
+
     maven {
         name = "ModMaven"
         url = "https://modmaven.dev"
     }
+
     maven {
         name = "TerraformersMC"
         url = "https://maven.terraformersmc.com/"
     }
-    // Patchouli
+
     maven { url = 'https://maven.blamejared.com' }
-    maven { url "https://cursemaven.com" }
+    maven { url = "https://cursemaven.com" }
     maven { url = "https://api.modrinth.com/maven" }
+
+    // Mixin AP
+    maven {
+        url = 'https://repo.spongepowered.org/repository/maven-public/'
+    }
 }
 
 dependencies {
-    // ---------------------------------------------------------
-    // NeoForge (ModDevGradle) では fg.deobf() は不要です。
-    // そのまま依存関係を記述するだけで自動的にマッピングされます。
-    // ---------------------------------------------------------
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
-    compileOnly           "org.projectlombok:lombok:1.18.38"
-    annotationProcessor   "org.projectlombok:lombok:1.18.38"
+    compileOnly         "org.projectlombok:lombok:1.18.38"
+    annotationProcessor "org.projectlombok:lombok:1.18.38"
 
     implementation "maven.modrinth:acceleratedrendering:1.0.8-1.21.1-alpha"
-    // 注意: NeoForge版のライブラリがある場合はそちらに変更することを推奨します
     implementation "curse.maven:playeranimator-658587:7389814"
 
-    // JEI (Forge用からNeoForge用に変更が必要な場合はプロパティ名を調整してください)
-//    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
-    compileOnly("mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}")
-    runtimeOnly("mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}")
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
+    runtimeOnly "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
 
-    // Configured & NBTEdit
     runtimeOnly "curse.maven:configured-457570:7276577"
     runtimeOnly "curse.maven:nbtedit-reborn-678133:6125444"
 
-    // 暮色森林
     implementation "curse.maven:the-twilight-forest-227639:7797302"
 
-    // EMI
     implementation "curse.maven:emi-580555:6420931"
     compileOnly "dev.emi:emi-neoforge:${emi_version}:api"
     runtimeOnly "dev.emi:emi-neoforge:${emi_version}"
 
-    // Patchouli
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
 }
 
-// ---------------------------------------------------------
-// リソース処理とメタデータの生成
-// ---------------------------------------------------------
 tasks.named('processResources', ProcessResources).configure {
-    // Forge関連の変数をNeoForge向けに置き換えています
     var replaceProperties = [
-            minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,
-            neo_version: neo_version, neo_version_range: neo_version_range,
-            loader_version_range: loader_version_range,
-            mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
-            mod_authors: mod_authors, mod_description: mod_description,
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description,
     ]
     inputs.properties replaceProperties
 
-    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+
+    filesMatching(['pack.mcmeta']) {
         expand replaceProperties
     }
 }
@@ -149,7 +153,8 @@ tasks.named('jar', Jar).configure {
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                'MixinConfigs'            : 'slashblade.mixins.json,slashblade.thetwilightforest.mixins.json,slashblade.patchouli.mixins.json,slashblade.emi.mixins.json,slashblade.ar.mixins.json'
         ])
     }
 }
@@ -164,6 +169,7 @@ publishing {
             from components.java
         }
     }
+
     repositories {
         maven {
             url "file://${maven_loc}"
@@ -182,9 +188,6 @@ idea {
     }
 }
 
-// ---------------------------------------------------------
-// Mod Publisher の設定 (1.21.1向けに更新)
-// ---------------------------------------------------------
 //publisher {
 //    apiKeys {
 //        modrinth System.getenv("MODRINTH_TOKEN")
@@ -197,18 +200,12 @@ idea {
 //    setChangelog("Changelog WIP...")
 //    setVersion("${project.version}")
 //
-//    // 1.21.1向けに表示名を更新
-//    setDisplayName("[1.21.1] SlashBlade:Resharped - ${project.version}")
-//
-//    // ターゲットバージョンとローダーをNeoForgeに変更
+//    setDisplayName("[1.21.1] SlashBlade:Resharped Tsugi - ${project.version}")
 //    setGameVersions("1.21.1")
 //    setLoaders("neoforge")
-//
 //    setCurseEnvironment("both")
 //    setArtifact(jar)
-//
-//    // Java 21 を指定 (MC 1.20.5以降はJava 21必須です)
-//    setJavaVersions "Java 21"
+//    setJavaVersions("Java 21")
 //    setDisableEmptyJarCheck(true)
 //
 //    curseDepends {

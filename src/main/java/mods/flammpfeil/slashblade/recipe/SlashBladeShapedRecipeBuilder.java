@@ -7,6 +7,7 @@ import mods.flammpfeil.slashblade.registry.SlashBladeItems;
 import net.minecraft.advancements.AdvancementRequirements;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.Criterion;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.advancements.critereon.RecipeUnlockedTrigger;
 import net.minecraft.data.recipes.RecipeBuilder;
 import net.minecraft.data.recipes.RecipeCategory;
@@ -110,6 +111,14 @@ public class SlashBladeShapedRecipeBuilder implements RecipeBuilder {
     @Override
     public @NotNull Item getResult() {
         return this.result;
+    }
+
+    @Override
+    public void save(@NotNull RecipeOutput output) {
+        ResourceLocation id = this.blade != null
+                ? this.blade
+                : Objects.requireNonNull(BuiltInRegistries.ITEM.getKey(this.result), "Recipe result item is not registered");
+        this.save(output, id);
     }
 
     @Override

@@ -19,7 +19,7 @@
     }
   },
   "rewards": {
-    "recipes": ["slashblade:simple_slashblade","slashblade:s_wood"],
+    "recipes": ["slashblade:slashblade","slashblade:slashblade_wood"],
     "loot": ["slashblade:rewards/first"]
   }
 }

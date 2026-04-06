@@ -18,7 +18,7 @@
       "conditions": {
         "items": [
           {
-            "item": "slashblade:slashblade"
+            "items": "slashblade:slashblade"
           }
         ]
       }

@@ -7,33 +7,17 @@
       "translate": "itemGroup.slashblade.desc"
     },
     "icon": {
-      "item": "slashblade:proudsoul_tiny"
+      "item": "slashblade:slashblade"
     },
     "background": "minecraft:textures/block/chiseled_quartz_block.png",
-    "frame": "task"
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "hidden": false
   },
   "criteria": {
-    "obtain_slashblade_item": {
-      "trigger": "minecraft:inventory_changed",
-      "conditions": {
-        "items": [
-          {
-            "items": [
-              "slashblade:slashblade",
-              "slashblade:slashblade_wood",
-              "slashblade:slashblade_white",
-              "slashblade:slashblade_bamboo",
-              "slashblade:slashblade_silverbamboo",
-              "slashblade:proudsoul_tiny",
-              "slashblade:proudsoul",
-              "slashblade:proudsoul_ingot",
-              "slashblade:proudsoul_sphere",
-              "slashblade:proudsoul_crystal",
-              "slashblade:proudsoul_trapezohedron"
-            ]
-          }
-        ]
-      }
+    "attackTheEntity": {
+      "trigger": "minecraft:player_hurt_entity"
     }
   },
   "rewards": {

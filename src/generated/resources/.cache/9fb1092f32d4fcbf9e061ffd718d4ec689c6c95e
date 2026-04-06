@@ -1,4 +1,4 @@
-// 1.21.1	2026-04-06T15:44:16.69189	Recipes
+// 1.21.1	2026-04-06T16:50:28.750776	Recipes
 3644b8fa98aaa84782a518454cc1b3102662952e data/slashblade/advancement/recipes/combat/agito.json
 a1ab69f7f18f5ece906c27a7ebfdabd7ef2aa185 data/slashblade/advancement/recipes/combat/doutanuki.json
 99d44aa182a624f58ce18b1e78e23ff6d2ff7318 data/slashblade/advancement/recipes/combat/fox_black.json
@@ -40,9 +40,9 @@ a9ecbc273e5ff758fd34831f60dc639fe75e11b6 data/slashblade/recipe/rodai_netherite_
 378d67cd552d282bcb60d4e2bc0af128376f2397 data/slashblade/recipe/ruby.json
 a29a8d50eadccc88943b9bca6e760540a2f07782 data/slashblade/recipe/sabigatana.json
 945ac090854fe87adae57f0fb7904002a82e5b6b data/slashblade/recipe/slashblade.json
-5c778594ba5ab2b669245b1dfdf27117794135d8 data/slashblade/recipe/slashblade_bamboo.json
-e99823deb3321a89c4059a0e45f1d52d0e0efe95 data/slashblade/recipe/slashblade_silverbamboo.json
-b42f9e4c246fcbdeced45e7c07fed864c4a4883f data/slashblade/recipe/slashblade_white.json
+8098182ab292ae42ab6da54253dd63779204f0dd data/slashblade/recipe/slashblade_bamboo.json
+642bd0f498c840a19f432c8f829e89c5073d40ba data/slashblade/recipe/slashblade_silverbamboo.json
+418bba5f3324d5f3dc9c300d2713eef2dfb75d36 data/slashblade/recipe/slashblade_white.json
 7ffa24fc1d601e7005d3d1589de3de8c1ee9e8f7 data/slashblade/recipe/slashblade_wood.json
 d18c392a35438046a8ec73ddc45c2484e4497667 data/slashblade/recipe/tagayasan.json
 2ae4641d5111a328271826be534792a9e5b88caa data/slashblade/recipe/yamato_fix.json

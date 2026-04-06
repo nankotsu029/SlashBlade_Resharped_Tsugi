@@ -27,7 +27,39 @@
     "PS "
   ],
   "result": {
+    "components": {
+      "slashblade:blade_state": {
+        "AttackAmplifier": 0.0,
+        "ComboRoot": "slashblade:standby",
+        "Damage": 0,
+        "ModelName": "slashblade:model/blade.obj",
+        "RepairCounter": 0,
+        "SpecialAttackType": "slashblade:judgement_cut",
+        "StandbyRenderType": 0,
+        "SummonedSwordColor": -13421569,
+        "SummonedSwordColorInverse": 0,
+        "TargetEntity": 0,
+        "TextureName": "slashblade:model/silverbamboo.png",
+        "_onClick": 0,
+        "adjustXYZ": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "baseAttackModifier": 3.0,
+        "currentCombo": "slashblade:none",
+        "fallDecreaseRate": 0.0,
+        "isBroken": 0,
+        "isDefaultBewitched": 0,
+        "isSealed": 0,
+        "killCount": 0,
+        "lastActionTime": 0,
+        "maxDamage": 40,
+        "proudSoul": 0,
+        "translationKey": ""
+      }
+    },
     "count": 1,
-    "id": "slashblade:slashblade"
+    "id": "slashblade:slashblade_silverbamboo"
   }
 }

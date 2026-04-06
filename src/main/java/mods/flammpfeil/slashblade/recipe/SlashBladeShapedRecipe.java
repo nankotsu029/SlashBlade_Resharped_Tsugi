@@ -19,6 +19,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -29,11 +30,14 @@ public class SlashBladeShapedRecipe extends ShapedRecipe {
     private final ResourceLocation outputBlade;
 
     public SlashBladeShapedRecipe(ShapedRecipe compose, ResourceLocation outputBlade) {
-        super(compose.getGroup(), compose.category(), compose.pattern, getResultBlade(outputBlade), compose.showNotification());
+        super(compose.getGroup(), compose.category(), compose.pattern, getResultBlade(compose, outputBlade), compose.showNotification());
         this.outputBlade = outputBlade;
     }
 
-    private static ItemStack getResultBlade(ResourceLocation outputBlade) {
+    private static ItemStack getResultBlade(ShapedRecipe compose, @Nullable ResourceLocation outputBlade) {
+        if (outputBlade == null) {
+            return compose.getResultItem(null);
+        }
         Item bladeItem = BuiltInRegistries.ITEM.getOptional(outputBlade).orElse(SlashBladeItems.SLASHBLADE.get());
         return Objects.requireNonNullElseGet(bladeItem, SlashBladeItems.SLASHBLADE).getDefaultInstance();
     }
@@ -48,7 +52,11 @@ public class SlashBladeShapedRecipe extends ShapedRecipe {
 
     @Override
     public @NotNull ItemStack getResultItem(@NotNull HolderLookup.Provider access) {
-        ItemStack result = getResultBlade(this.outputBlade);
+        if (this.outputBlade == null) {
+            return super.getResultItem(access);
+        }
+
+        ItemStack result = getResultBlade(this, this.outputBlade);
 
         if (!Objects.equals(BuiltInRegistries.ITEM.getKey(result.getItem()), this.outputBlade)) {
             result = access.lookupOrThrow(SlashBladeDefinition.REGISTRY_KEY).getOrThrow(getOutputBladeKey()).value().getBlade();

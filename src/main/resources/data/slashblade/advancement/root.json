@@ -7,7 +7,7 @@
       "translate": "itemGroup.slashblade.desc"
     },
     "icon": {
-      "item": "slashblade:slashblade"
+      "id": "slashblade:slashblade"
     },
     "background": "minecraft:textures/block/chiseled_quartz_block.png",
     "frame": "task",

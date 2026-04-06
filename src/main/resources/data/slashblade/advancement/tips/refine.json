@@ -7,8 +7,7 @@
       "translate": "adv.slashblade.refine.desc"
     },
     "icon": {
-      "item": "minecraft:anvil",
-      "nbt": "{Crafting:\"slashblade:anvilcrafting/refine\"}"
+      "item": "minecraft:anvil"
     },
     "frame": "challenge"
   },

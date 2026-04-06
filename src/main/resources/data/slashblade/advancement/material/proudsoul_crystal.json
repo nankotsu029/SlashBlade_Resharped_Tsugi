@@ -7,8 +7,7 @@
       "translate": "adv.slashblade.proudsoul_crystal"
     },
     "icon": {
-      "item": "slashblade:proudsoul_crystal",
-      "nbt": "{Crafting:\"slashblade:material/crystal_blasting\"}"
+      "item": "slashblade:proudsoul_crystal"
     },
     "frame": "task"
   },

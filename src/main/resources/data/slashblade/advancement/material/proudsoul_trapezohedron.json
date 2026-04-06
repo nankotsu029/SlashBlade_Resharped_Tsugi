@@ -7,8 +7,7 @@
       "translate": "adv.slashblade.proudsoul_trapezohedron"
     },
     "icon": {
-      "item": "slashblade:proudsoul_trapezohedron",
-      "nbt": "{Crafting:\"slashblade:material/trapezohedron_blasting\"}"
+      "item": "slashblade:proudsoul_trapezohedron"
     },
     "frame": "task"
   },

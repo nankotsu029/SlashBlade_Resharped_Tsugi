@@ -7,8 +7,7 @@
       "translate": "adv.slashblade.proudsoul"
     },
     "icon": {
-      "item": "slashblade:proudsoul",
-      "nbt": "{Crafting:\"slashblade:material/soul\"}"
+      "item": "slashblade:proudsoul"
     },
     "frame": "task"
   },

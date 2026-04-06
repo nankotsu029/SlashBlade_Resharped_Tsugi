@@ -97,18 +97,12 @@ public class ItemSlashBlade extends SwordItem {
     }
 
     public static @Nullable SlashBladeState getBladeState(ItemStack stack) {
-        SlashBladeState state = stack.get(BLADESTATE);
-        return state == null || state.isEmpty() ? null : state;
+        return ensureActiveBladeState(stack);
     }
 
     public static SlashBladeState getOrCreateBladeState(ItemStack stack) {
-        SlashBladeState state = stack.get(BLADESTATE);
-        if (state == null) {
-            state = new SlashBladeState();
-        } else {
-            state = state.copy();
-        }
-        return state;
+        SlashBladeState state = ensureActiveBladeState(stack);
+        return state == null ? new SlashBladeState() : state.copy();
     }
 
     public static void setBladeState(ItemStack stack, SlashBladeState state) {
@@ -120,6 +114,20 @@ public class ItemSlashBlade extends SwordItem {
         stack.set(BLADESTATE, state);
     }
 
+    private static @Nullable SlashBladeState ensureActiveBladeState(ItemStack stack) {
+        SlashBladeState state = stack.get(BLADESTATE);
+        if (state != null && !state.isEmpty()) {
+            return state;
+        }
+        if (!(stack.getItem() instanceof ItemSlashBlade)) {
+            return null;
+        }
+
+        setBladeState(stack, state == null ? new SlashBladeState() : state.copy());
+        SlashBladeState activeState = stack.get(BLADESTATE);
+        return activeState == null || activeState.isEmpty() ? null : activeState;
+    }
+
     public static void updateBladeState(ItemStack stack, Consumer<SlashBladeState> updater) {
         SlashBladeState state = getOrCreateBladeState(stack);
         updater.accept(state);
@@ -128,7 +136,7 @@ public class ItemSlashBlade extends SwordItem {
 
     protected SlashBladeState initializeBladeState(ItemStack stack, SlashBladeState state) {
         if (state.getMaxDamage() <= 0) {
-            state.setMaxDamage(stack.getMaxDamage());
+            state.setMaxDamage(this.getTier().getUses());
         }
         return state;
     }
@@ -136,11 +144,14 @@ public class ItemSlashBlade extends SwordItem {
     @Override
     public void verifyComponentsAfterLoad(ItemStack stack) {
         super.verifyComponentsAfterLoad(stack);
-        SlashBladeState state = stack.get(BLADESTATE);
-        if (state == null) {
-            return;
-        }
-        setBladeState(stack, state.copy());
+        ensureActiveBladeState(stack);
+    }
+
+    @Override
+    public @NotNull ItemStack getDefaultInstance() {
+        ItemStack stack = super.getDefaultInstance();
+        ensureActiveBladeState(stack);
+        return stack;
     }
 
     @Override

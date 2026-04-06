@@ -271,7 +271,7 @@ public class ItemSlashBlade extends SwordItem {
         if (maxDamage < 0) {
             return;
         }
-        var state = Objects.requireNonNull(getBladeState(stack), "ItemStack has no active BLADE_STATE component");
+        SlashBladeState state = getOrCreateBladeState(stack);
         if (state.isBroken()) {
             if (damage <= 0 && !state.isSealed()) {
                 state.setBroken(false);
@@ -280,6 +280,7 @@ public class ItemSlashBlade extends SwordItem {
             }
         }
         state.setDamage(damage);
+        setBladeState(stack, state);
     }
 
     @Override

@@ -103,7 +103,7 @@ public record RequestDefinition(ResourceLocation name, int proudSoulCount, int k
             switch (type) {
                 case BEWITCHED -> bladeState.setDefaultBewitched(true);
                 case BROKEN -> {
-                    blade.setDamageValue(blade.getMaxDamage() - 1);
+                    bladeState.setDamage(bladeState.getMaxDamage() - 1);
                     bladeState.setBroken(true);
                 }
                 case SEALED -> bladeState.setSealed(true);

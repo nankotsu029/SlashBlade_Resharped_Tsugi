@@ -1,7 +1,6 @@
 {
   "pools": [
     {
-      "name": "root",
       "rolls": 1,
       "entries": [
         {

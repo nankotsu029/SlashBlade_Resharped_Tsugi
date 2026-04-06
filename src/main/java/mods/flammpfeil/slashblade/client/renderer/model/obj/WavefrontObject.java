@@ -13,32 +13,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Wavefront Object importer Based heavily off of the specifications found at
  * <a href="http://en.wikipedia.org/wiki/Wavefront_.obj_file">...</a>
  */
 public class WavefrontObject {
-
-    private static final Pattern vertexPattern = Pattern
-            .compile("(v( (\\-){0,1}\\d+(\\.\\d+)?){3,4} *\\n)|(v( (\\-){0,1}\\d+(\\.\\d+)?){3,4} *$)");
-    private static final Pattern vertexNormalPattern = Pattern
-            .compile("(vn( (\\-){0,1}\\d+(\\.\\d+)?){3,4} *\\n)|(vn( (\\-){0,1}\\d+(\\.\\d+)?){3,4} *$)");
-    private static final Pattern textureCoordinatePattern = Pattern
-            .compile("(vt( (\\-){0,1}\\d+\\.\\d+){2,3} *\\n)|(vt( (\\-){0,1}\\d+(\\.\\d+)?){2,3} *$)");
-    private static final Pattern face_V_VT_VN_Pattern = Pattern
-            .compile("(f( \\d+/\\d+/\\d+){3,4} *\\n)|(f( \\d+/\\d+/\\d+){3,4} *$)");
-    private static final Pattern face_V_VT_Pattern = Pattern.compile("(f( \\d+/\\d+){3,4} *\\n)|(f( \\d+/\\d+){3,4} *$)");
-    private static final Pattern face_V_VN_Pattern = Pattern.compile("(f( \\d+//\\d+){3,4} *\\n)|(f( \\d+//\\d+){3,4} *$)");
-    private static final Pattern face_V_Pattern = Pattern.compile("(f( \\d+){3,4} *\\n)|(f( \\d+){3,4} *$)");
-    private static final Pattern groupObjectPattern = Pattern.compile("([go]( [\\w\\d\\.]+) *\\n)|([go]( [\\w\\d\\.]+) *$)");
-
-    private static Matcher vertexMatcher, vertexNormalMatcher, textureCoordinateMatcher;
-    private static Matcher face_V_VT_VN_Matcher, face_V_VT_Matcher, face_V_VN_Matcher, face_V_Matcher;
-    private static Matcher groupObjectMatcher;
-
     public ArrayList<Vertex> vertices = new ArrayList<>();
     public ArrayList<Vertex> vertexNormals = new ArrayList<>();
     public ArrayList<TextureCoordinate> textureCoordinates = new ArrayList<>();
@@ -177,76 +157,52 @@ public class WavefrontObject {
     }
 
     private Vertex parseVertex(String line, int lineCount) throws ModelFormatException {
-        Vertex vertex = null;
+        String[] tokens = tokenize(line);
 
-        if (isValidVertexLine(line)) {
-            line = line.substring(line.indexOf(" ") + 1);
-            String[] tokens = line.split(" ");
-
-            try {
-                if (tokens.length == 2) {
-                    return new Vertex(Float.parseFloat(tokens[0]), Float.parseFloat(tokens[1]));
-                } else if (tokens.length == 3) {
-                    return new Vertex(Float.parseFloat(tokens[0]), Float.parseFloat(tokens[1]),
-                            Float.parseFloat(tokens[2]));
-                }
-            } catch (NumberFormatException e) {
-                throw new ModelFormatException(String.format("Number formatting error at line %d", lineCount), e);
-            }
-        } else {
-            throw new ModelFormatException("Error parsing entry ('" + line + "'" + ", line " + lineCount + ") in file '"
-                    + fileName + "' - Incorrect format");
+        if (!isValidNumericLine(tokens, "v", 3, 4)) {
+            throw invalidFormat(line, lineCount);
         }
 
-        return null;
+        try {
+            if (tokens.length == 3) {
+                return new Vertex(Float.parseFloat(tokens[1]), Float.parseFloat(tokens[2]));
+            }
+            return new Vertex(Float.parseFloat(tokens[1]), Float.parseFloat(tokens[2]), Float.parseFloat(tokens[3]));
+        } catch (NumberFormatException e) {
+            throw new ModelFormatException(String.format("Number formatting error at line %d", lineCount), e);
+        }
     }
 
     private Vertex parseVertexNormal(String line, int lineCount) throws ModelFormatException {
-        Vertex vertexNormal = null;
+        String[] tokens = tokenize(line);
 
-        if (isValidVertexNormalLine(line)) {
-            line = line.substring(line.indexOf(" ") + 1);
-            String[] tokens = line.split(" ");
-
-            try {
-                if (tokens.length == 3) {
-                    return new Vertex(Float.parseFloat(tokens[0]), Float.parseFloat(tokens[1]),
-                            Float.parseFloat(tokens[2]));
-                }
-            } catch (NumberFormatException e) {
-                throw new ModelFormatException(String.format("Number formatting error at line %d", lineCount), e);
-            }
-        } else {
-            throw new ModelFormatException("Error parsing entry ('" + line + "'" + ", line " + lineCount + ") in file '"
-                    + fileName + "' - Incorrect format");
+        if (!isValidNumericLine(tokens, "vn", 3, 3)) {
+            throw invalidFormat(line, lineCount);
         }
 
-        return null;
+        try {
+            return new Vertex(Float.parseFloat(tokens[1]), Float.parseFloat(tokens[2]), Float.parseFloat(tokens[3]));
+        } catch (NumberFormatException e) {
+            throw new ModelFormatException(String.format("Number formatting error at line %d", lineCount), e);
+        }
     }
 
     private TextureCoordinate parseTextureCoordinate(String line, int lineCount) throws ModelFormatException {
-        TextureCoordinate textureCoordinate = null;
+        String[] tokens = tokenize(line);
 
-        if (isValidTextureCoordinateLine(line)) {
-            line = line.substring(line.indexOf(" ") + 1);
-            String[] tokens = line.split(" ");
-
-            try {
-                if (tokens.length == 2) {
-                    return new TextureCoordinate(Float.parseFloat(tokens[0]), 1 - Float.parseFloat(tokens[1]));
-                } else if (tokens.length == 3) {
-                    return new TextureCoordinate(Float.parseFloat(tokens[0]), 1 - Float.parseFloat(tokens[1]),
-                            Float.parseFloat(tokens[2]));
-                }
-            } catch (NumberFormatException e) {
-                throw new ModelFormatException(String.format("Number formatting error at line %d", lineCount), e);
-            }
-        } else {
-            throw new ModelFormatException("Error parsing entry ('" + line + "'" + ", line " + lineCount + ") in file '"
-                    + fileName + "' - Incorrect format");
+        if (!isValidNumericLine(tokens, "vt", 2, 3)) {
+            throw invalidFormat(line, lineCount);
         }
 
-        return null;
+        try {
+            if (tokens.length == 3) {
+                return new TextureCoordinate(Float.parseFloat(tokens[1]), 1 - Float.parseFloat(tokens[2]));
+            }
+            return new TextureCoordinate(Float.parseFloat(tokens[1]), 1 - Float.parseFloat(tokens[2]),
+                    Float.parseFloat(tokens[3]));
+        } catch (NumberFormatException e) {
+            throw new ModelFormatException(String.format("Number formatting error at line %d", lineCount), e);
+        }
     }
 
     private Face parseFace(String line, int lineCount) throws ModelFormatException {
@@ -343,20 +299,13 @@ public class WavefrontObject {
     }
 
     private GroupObject parseGroupObject(String line, int lineCount) throws ModelFormatException {
-        GroupObject group = null;
-
-        if (isValidGroupObjectLine(line)) {
-            String trimmedLine = line.substring(line.indexOf(" ") + 1);
-
-            if (!trimmedLine.isEmpty()) {
-                group = new GroupObject(trimmedLine);
-            }
-        } else {
-            throw new ModelFormatException("Error parsing entry ('" + line + "'" + ", line " + lineCount + ") in file '"
-                    + fileName + "' - Incorrect format");
+        String[] tokens = tokenize(line);
+        if (tokens.length < 2 || (!"g".equals(tokens[0]) && !"o".equals(tokens[0]))) {
+            throw invalidFormat(line, lineCount);
         }
 
-        return group;
+        String trimmedLine = line.substring(line.indexOf(" ") + 1).trim();
+        return trimmedLine.isEmpty() ? null : new GroupObject(trimmedLine);
     }
 
     /***
@@ -366,12 +315,7 @@ public class WavefrontObject {
      * @return true if the line is a valid vertex, false otherwise
      */
     private static boolean isValidVertexLine(String line) {
-        if (vertexMatcher != null) {
-            vertexMatcher.reset();
-        }
-
-        vertexMatcher = vertexPattern.matcher(line);
-        return vertexMatcher.matches();
+        return isValidNumericLine(tokenize(line), "v", 3, 4);
     }
 
     /***
@@ -381,12 +325,7 @@ public class WavefrontObject {
      * @return true if the line is a valid vertex normal, false otherwise
      */
     private static boolean isValidVertexNormalLine(String line) {
-        if (vertexNormalMatcher != null) {
-            vertexNormalMatcher.reset();
-        }
-
-        vertexNormalMatcher = vertexNormalPattern.matcher(line);
-        return vertexNormalMatcher.matches();
+        return isValidNumericLine(tokenize(line), "vn", 3, 3);
     }
 
     /***
@@ -397,12 +336,7 @@ public class WavefrontObject {
      * @return true if the line is a valid texture coordinate, false otherwise
      */
     private static boolean isValidTextureCoordinateLine(String line) {
-        if (textureCoordinateMatcher != null) {
-            textureCoordinateMatcher.reset();
-        }
-
-        textureCoordinateMatcher = textureCoordinatePattern.matcher(line);
-        return textureCoordinateMatcher.matches();
+        return isValidNumericLine(tokenize(line), "vt", 2, 3);
     }
 
     /***
@@ -415,12 +349,15 @@ public class WavefrontObject {
      *         maximum of 4), false otherwise
      */
     private static boolean isValidFace_V_VT_VN_Line(String line) {
-        if (face_V_VT_VN_Matcher != null) {
-            face_V_VT_VN_Matcher.reset();
-        }
-
-        face_V_VT_VN_Matcher = face_V_VT_VN_Pattern.matcher(line);
-        return face_V_VT_VN_Matcher.matches();
+        String[] tokens = tokenize(line);
+        return hasValidFaceArity(tokens) && areValidFaceTokens(tokens, token -> {
+            String[] subTokens = token.split("/");
+            return subTokens.length == 3
+                    && !subTokens[0].isEmpty()
+                    && !subTokens[1].isEmpty()
+                    && !subTokens[2].isEmpty()
+                    && areIntegers(subTokens);
+        });
     }
 
     /***
@@ -433,12 +370,14 @@ public class WavefrontObject {
      *         false otherwise
      */
     private static boolean isValidFace_V_VT_Line(String line) {
-        if (face_V_VT_Matcher != null) {
-            face_V_VT_Matcher.reset();
-        }
-
-        face_V_VT_Matcher = face_V_VT_Pattern.matcher(line);
-        return face_V_VT_Matcher.matches();
+        String[] tokens = tokenize(line);
+        return hasValidFaceArity(tokens) && areValidFaceTokens(tokens, token -> {
+            String[] subTokens = token.split("/");
+            return subTokens.length == 2
+                    && !subTokens[0].isEmpty()
+                    && !subTokens[1].isEmpty()
+                    && areIntegers(subTokens);
+        });
     }
 
     /***
@@ -451,12 +390,14 @@ public class WavefrontObject {
      *         false otherwise
      */
     private static boolean isValidFace_V_VN_Line(String line) {
-        if (face_V_VN_Matcher != null) {
-            face_V_VN_Matcher.reset();
-        }
-
-        face_V_VN_Matcher = face_V_VN_Pattern.matcher(line);
-        return face_V_VN_Matcher.matches();
+        String[] tokens = tokenize(line);
+        return hasValidFaceArity(tokens) && areValidFaceTokens(tokens, token -> {
+            String[] subTokens = token.split("//");
+            return subTokens.length == 2
+                    && !subTokens[0].isEmpty()
+                    && !subTokens[1].isEmpty()
+                    && areIntegers(subTokens);
+        });
     }
 
     /***
@@ -469,12 +410,8 @@ public class WavefrontObject {
      *         otherwise
      */
     private static boolean isValidFace_V_Line(String line) {
-        if (face_V_Matcher != null) {
-            face_V_Matcher.reset();
-        }
-
-        face_V_Matcher = face_V_Pattern.matcher(line);
-        return face_V_Matcher.matches();
+        String[] tokens = tokenize(line);
+        return hasValidFaceArity(tokens) && areValidFaceTokens(tokens, WavefrontObject::isInteger);
     }
 
     /***
@@ -497,15 +434,73 @@ public class WavefrontObject {
      * @return true if the line is a valid group (or object), false otherwise
      */
     private static boolean isValidGroupObjectLine(String line) {
-        if (groupObjectMatcher != null) {
-            groupObjectMatcher.reset();
-        }
-
-        groupObjectMatcher = groupObjectPattern.matcher(line);
-        return groupObjectMatcher.matches();
+        String[] tokens = tokenize(line);
+        return tokens.length >= 2 && ("g".equals(tokens[0]) || "o".equals(tokens[0]));
     }
 
     public String getType() {
         return "obj";
+    }
+
+    private static String[] tokenize(String line) {
+        return line.trim().split("\\s+");
+    }
+
+    private static boolean isValidNumericLine(String[] tokens, String prefix, int minValues, int maxValues) {
+        if (tokens.length < minValues + 1 || tokens.length > maxValues + 1 || !prefix.equals(tokens[0])) {
+            return false;
+        }
+
+        for (int i = 1; i < tokens.length; i++) {
+            if (!isFloat(tokens[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean hasValidFaceArity(String[] tokens) {
+        return tokens.length >= 4 && tokens.length <= 5 && "f".equals(tokens[0]);
+    }
+
+    private static boolean areValidFaceTokens(String[] tokens, java.util.function.Predicate<String> validator) {
+        for (int i = 1; i < tokens.length; i++) {
+            if (!validator.test(tokens[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean areIntegers(String[] tokens) {
+        for (String token : tokens) {
+            if (!isInteger(token)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isInteger(String token) {
+        try {
+            Integer.parseInt(token);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private static boolean isFloat(String token) {
+        try {
+            Float.parseFloat(token);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private ModelFormatException invalidFormat(String line, int lineCount) {
+        return new ModelFormatException("Error parsing entry ('" + line + "'" + ", line " + lineCount + ") in file '"
+                + fileName + "' - Incorrect format");
     }
 }

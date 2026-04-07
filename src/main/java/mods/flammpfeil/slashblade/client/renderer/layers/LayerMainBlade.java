@@ -388,7 +388,7 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
     }
 
     public void renderFirstPerson(PoseStack matrixStack, MultiBufferSource bufferIn, int lightIn, T entity, float partialTicks) {
-        renderMainBladeInternal(matrixStack, bufferIn, lightIn, entity, partialTicks, true);
+        renderMainBladeInternal(matrixStack, bufferIn, lightIn, entity, partialTicks, false);
     }
 
     private void renderMainBladeInternal(PoseStack matrixStack, MultiBufferSource bufferIn, int lightIn,

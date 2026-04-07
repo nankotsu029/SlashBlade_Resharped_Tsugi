@@ -3,6 +3,7 @@ import com.google.common.base.CaseFormat;
 import mods.flammpfeil.slashblade.ability.*;
 import mods.flammpfeil.slashblade.client.renderer.layers.LayerMainBlade;
 import mods.flammpfeil.slashblade.data.DataGen;
+import mods.flammpfeil.slashblade.event.client.SlashBladeLayerEvent;
 import mods.flammpfeil.slashblade.init.ModAttachments;
 import mods.flammpfeil.slashblade.init.ModDataComponents;
 import mods.flammpfeil.slashblade.init.ModIngredientTypes;
@@ -79,6 +80,9 @@ public class SlashBlade {
         RecipeSerializerRegistry.RECIPE_SERIALIZER.register(modBus);
         SpecialEffectsRegistry.SPECIAL_EFFECT.register(modBus);
         modBus.addListener(DataGen::dataGen);
+
+        modBus.addListener(SlashBladeLayerEvent::onAddLayers);
+        NeoForge.EVENT_BUS.addListener(SlashBladeLayerEvent.getInstance()::onRenderHand);
     }
 
     private void setup(final FMLCommonSetupEvent event) {

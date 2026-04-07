@@ -9,10 +9,10 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RenderHandEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
-public class LayerEvent {
-    private static final LayerEvent INSTANCE = new LayerEvent();
+public class SlashBladeLayerEvent {
+    private static final SlashBladeLayerEvent INSTANCE = new SlashBladeLayerEvent();
 
-    public static LayerEvent getInstance() {
+    public static SlashBladeLayerEvent getInstance() {
         return INSTANCE;
     }
 

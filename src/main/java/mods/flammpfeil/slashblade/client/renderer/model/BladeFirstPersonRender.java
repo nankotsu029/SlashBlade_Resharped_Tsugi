@@ -84,9 +84,9 @@ public class BladeFirstPersonRender {
         BladeModel.user = player;
 
         try (MSAutoCloser ignored = MSAutoCloser.pushMatrix(event.getPoseStack())) {
-            PoseStack.Pose last = event.getPoseStack().last();
-            last.pose().identity();
-            last.normal().identity();
+//            PoseStack.Pose last = event.getPoseStack().last();
+//            last.pose().identity();
+//            last.normal().identity();
 
             float armSign = player.getMainArm() == HumanoidArm.RIGHT ? -1.0f : 1.0f;
 

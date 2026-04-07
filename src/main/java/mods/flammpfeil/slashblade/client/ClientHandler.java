@@ -4,11 +4,10 @@ import mods.flammpfeil.slashblade.client.renderer.LockonCircleRender;
 import mods.flammpfeil.slashblade.client.renderer.gui.RankRenderer;
 import mods.flammpfeil.slashblade.client.renderer.layers.LayerMainBlade;
 import mods.flammpfeil.slashblade.client.renderer.model.BladeModel;
-import mods.flammpfeil.slashblade.client.renderer.model.BladeModelManager;
 import mods.flammpfeil.slashblade.client.renderer.model.BladeMotionManager;
 import mods.flammpfeil.slashblade.compat.playerAnim.PlayerAnimationOverrider;
 import mods.flammpfeil.slashblade.event.client.AdvancementsRecipeRenderer;
-import mods.flammpfeil.slashblade.event.client.LayerEvent;
+import mods.flammpfeil.slashblade.event.client.SlashBladeLayerEvent;
 import mods.flammpfeil.slashblade.event.client.SneakingMotionCanceller;
 import mods.flammpfeil.slashblade.event.client.UserPoseOverrider;
 import mods.flammpfeil.slashblade.registry.SlashBladeItems;
@@ -25,8 +24,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
@@ -42,7 +39,7 @@ public class ClientHandler {
 
     public static void doClientStuff(final FMLClientSetupEvent event) {
         SneakingMotionCanceller.getInstance().register();
-        LayerEvent.getInstance().register();
+        SlashBladeLayerEvent.getInstance().register();
 
         if (LoaderUtil.isClassAvailable("dev.kosmx.playerAnim.api.layered.AnimationStack")) {
             PlayerAnimationOverrider.getInstance().register();

@@ -29,6 +29,7 @@ public final class SlashBladeClient {
         modBus.addListener(ClientHandler::onTextureAtlasStitched);
         modBus.addListener(PreloadedModelEvent::registerResourceLoaders);
         modBus.addListener(SlashBladeClient::registerEntityRenderers);
+        modBus.addListener(SlashBladeLayerEvent::onAddLayers);
     }
 
     private static void registerEntityRenderers(final EntityRenderersEvent.RegisterRenderers event) {

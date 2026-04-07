@@ -80,8 +80,6 @@ public class SlashBlade {
         RecipeSerializerRegistry.RECIPE_SERIALIZER.register(modBus);
         SpecialEffectsRegistry.SPECIAL_EFFECT.register(modBus);
         modBus.addListener(DataGen::dataGen);
-
-        modBus.addListener(SlashBladeLayerEvent::onAddLayers);
     }
 
     private void setup(final FMLCommonSetupEvent event) {

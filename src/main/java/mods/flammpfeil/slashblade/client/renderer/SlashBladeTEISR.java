@@ -2,7 +2,6 @@ package mods.flammpfeil.slashblade.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import mods.flammpfeil.slashblade.client.renderer.model.BladeFirstPersonRender;
 import mods.flammpfeil.slashblade.client.renderer.model.BladeModel;
 import mods.flammpfeil.slashblade.client.renderer.model.BladeModelManager;
 import mods.flammpfeil.slashblade.client.renderer.model.obj.WavefrontObject;
@@ -61,30 +60,13 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
                 || ctx == ItemDisplayContext.NONE;
     }
 
-    private static boolean isMainHandFirstPersonContext(LocalPlayer player, ItemDisplayContext ctx) {
-        if (player == null) return false;
-        return player.getMainArm() == HumanoidArm.RIGHT
-                ? ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND
-                : ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
-    }
-
     public boolean renderBlade(ItemStack stack, ItemDisplayContext transformType, PoseStack poseStack,
                                MultiBufferSource buffer, int light, int overlay) {
 
-        // 手持ち中のプレイヤー追従描画はここで打ち切る
+        // NeoForge 1.21.1: first-person custom blade rendering is driven from RenderHandEvent.
+        // Skip BEWLR output for player-held contexts so the flat item model does not appear.
         if (isPlayerContext(transformType)) {
-            LocalPlayer player = Minecraft.getInstance().player;
-            BladeModel.user = player;
-
-            // 旧コードと同じ意味:
-            // 利き手側の first person context のときだけ first-person layer を描画する
-            if (isMainHandFirstPersonContext(player, transformType)) {
-                try (MSAutoCloser ignored = MSAutoCloser.pushMatrix(poseStack)) {
-                    BladeFirstPersonRender.getInstance()
-                            .render(stack, transformType, poseStack, buffer, light);
-                }
-            }
-
+            BladeModel.user = Minecraft.getInstance().player;
             return false;
         }
 
@@ -122,13 +104,8 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
 
         EnumSet<SwordType> types = SwordType.from(stack);
 
-        var bladeState = ItemSlashBlade.getBladeState(stack);
-        ResourceLocation modelLocation = (bladeState != null && bladeState.getModel().isPresent())
-                ? bladeState.getModel().get()
-                : stackDefaultModel(stack);
-        ResourceLocation textureLocation = (bladeState != null && bladeState.getTexture().isPresent())
-                ? bladeState.getTexture().get()
-                : stackDefaultTexture(stack);
+        ResourceLocation modelLocation = resolveModelLocation(stack);
+        ResourceLocation textureLocation = resolveTextureLocation(stack);
 
         WavefrontObject model = BladeModelManager.getInstance().getModel(modelLocation);
 
@@ -170,7 +147,23 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
         }
     }
 
-    public ResourceLocation stackDefaultModel(ItemStack stack) {
+    public static ResourceLocation resolveModelLocation(ItemStack stack) {
+        var bladeState = ItemSlashBlade.getBladeState(stack);
+        if (bladeState != null && bladeState.getModel().isPresent()) {
+            return bladeState.getModel().get();
+        }
+        return stackDefaultModel(stack);
+    }
+
+    public static ResourceLocation resolveTextureLocation(ItemStack stack) {
+        var bladeState = ItemSlashBlade.getBladeState(stack);
+        if (bladeState != null && bladeState.getTexture().isPresent()) {
+            return bladeState.getTexture().get();
+        }
+        return stackDefaultTexture(stack);
+    }
+
+    public static ResourceLocation stackDefaultModel(ItemStack stack) {
         var bladeState = ItemSlashBlade.getBladeState(stack);
         String name = null;
         if (bladeState != null && bladeState.getModel().isPresent()) {
@@ -194,7 +187,7 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
         return DefaultResources.resourceDefaultModel;
     }
 
-    public ResourceLocation stackDefaultTexture(ItemStack stack) {
+    public static ResourceLocation stackDefaultTexture(ItemStack stack) {
         var bladeState = ItemSlashBlade.getBladeState(stack);
         String name = null;
         if (bladeState != null && bladeState.getTexture().isPresent()) {
@@ -226,13 +219,8 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
 
         EnumSet<SwordType> types = SwordType.from(stack);
 
-        var bladeState = ItemSlashBlade.getBladeState(stack);
-        ResourceLocation modelLocation = (bladeState != null && bladeState.getModel().isPresent())
-                ? bladeState.getModel().get()
-                : stackDefaultModel(stack);
-        ResourceLocation textureLocation = (bladeState != null && bladeState.getTexture().isPresent())
-                ? bladeState.getTexture().get()
-                : stackDefaultTexture(stack);
+        ResourceLocation modelLocation = resolveModelLocation(stack);
+        ResourceLocation textureLocation = resolveTextureLocation(stack);
         WavefrontObject model = BladeModelManager.getInstance().getModel(modelLocation);
 
         Vec3 bladeOffset = Vec3.ZERO;

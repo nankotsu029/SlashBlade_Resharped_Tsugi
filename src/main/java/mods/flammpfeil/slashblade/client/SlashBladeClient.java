@@ -8,6 +8,7 @@ import mods.flammpfeil.slashblade.client.renderer.entity.JudgementCutRenderer;
 import mods.flammpfeil.slashblade.client.renderer.entity.SlashEffectRenderer;
 import mods.flammpfeil.slashblade.client.renderer.entity.SummonedSwordRenderer;
 import mods.flammpfeil.slashblade.client.renderer.event.PreloadedModelEvent;
+import mods.flammpfeil.slashblade.event.client.LayerEvent;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -24,7 +25,7 @@ public final class SlashBladeClient {
         modBus.addListener(ClientHandler::doClientStuff);
         modBus.addListener(ClientHandler::registerKeyMapping);
         modBus.addListener(ClientHandler::bakeModels);
-        modBus.addListener(ClientHandler::addLayers);
+        modBus.addListener(LayerEvent::onAddLayers);
         modBus.addListener(ClientHandler::onCreativeTagBuilding);
         modBus.addListener(ClientHandler::onTextureAtlasStitched);
         modBus.addListener(PreloadedModelEvent::registerResourceLoaders);

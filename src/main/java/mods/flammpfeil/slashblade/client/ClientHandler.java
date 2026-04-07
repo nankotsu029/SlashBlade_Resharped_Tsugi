@@ -8,6 +8,7 @@ import mods.flammpfeil.slashblade.client.renderer.model.BladeModelManager;
 import mods.flammpfeil.slashblade.client.renderer.model.BladeMotionManager;
 import mods.flammpfeil.slashblade.compat.playerAnim.PlayerAnimationOverrider;
 import mods.flammpfeil.slashblade.event.client.AdvancementsRecipeRenderer;
+import mods.flammpfeil.slashblade.event.client.LayerEvent;
 import mods.flammpfeil.slashblade.event.client.SneakingMotionCanceller;
 import mods.flammpfeil.slashblade.event.client.UserPoseOverrider;
 import mods.flammpfeil.slashblade.registry.SlashBladeItems;
@@ -41,6 +42,7 @@ public class ClientHandler {
 
     public static void doClientStuff(final FMLClientSetupEvent event) {
         SneakingMotionCanceller.getInstance().register();
+        LayerEvent.getInstance().register();
 
         if (LoaderUtil.isClassAvailable("dev.kosmx.playerAnim.api.layered.AnimationStack")) {
             PlayerAnimationOverrider.getInstance().register();

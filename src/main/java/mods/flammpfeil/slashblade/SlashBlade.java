@@ -1,7 +1,9 @@
 package mods.flammpfeil.slashblade;
 import com.google.common.base.CaseFormat;
 import mods.flammpfeil.slashblade.ability.*;
+import mods.flammpfeil.slashblade.client.renderer.layers.LayerMainBlade;
 import mods.flammpfeil.slashblade.data.DataGen;
+import mods.flammpfeil.slashblade.event.client.LayerEvent;
 import mods.flammpfeil.slashblade.init.ModAttachments;
 import mods.flammpfeil.slashblade.init.ModDataComponents;
 import mods.flammpfeil.slashblade.init.ModIngredientTypes;
@@ -15,6 +17,10 @@ import mods.flammpfeil.slashblade.registry.*;
 import mods.flammpfeil.slashblade.registry.combo.ComboCommands;
 import mods.flammpfeil.slashblade.registry.slashblade.SlashBladeDefinition;
 import mods.flammpfeil.slashblade.util.TargetSelector;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -32,6 +38,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityAttributeModificationEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -53,6 +60,7 @@ public class SlashBlade {
         BlockPickCanceller.register(NeoForge.EVENT_BUS);
     }
 
+
     public SlashBlade(IEventBus modBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.COMMON, SlashBladeConfig.COMMON_CONFIG);
 
@@ -62,6 +70,7 @@ public class SlashBlade {
         modBus.addListener(RegistryEvents::register);
         modBus.addListener(RegistryEvents::onEntityAttributeModificationEvent);
         modBus.addListener(RegistryHandler::onDatapackRegister);
+        modBus.addListener(LayerEvent::onAddLayers);
 
         ModAttributes.ATTRIBUTES.register(modBus);
         ModDataComponents.DATA_COMPONENTS.register(modBus);
@@ -105,8 +114,6 @@ public class SlashBlade {
         SuperSlashArts.getInstance().register();
 
         ComboCommands.initDefaultStandByCommands();
-
-
     }
 
     // You can use EventBusSubscriber to automatically subscribe events on the

@@ -197,6 +197,15 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
                        @NotNull T entity, float limbSwing, float limbSwingAmount,
                        float partialTicks, float ageInTicks, float netHeadYaw, float headPitch) {
 
+        // 一人称の自プレイヤーは BladeFirstPersonRender (TEISR経由) が描画するため、
+        // ここでは描画しない（二重描画防止）
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.options.getCameraType() == CameraType.FIRST_PERSON && entity == mc.player) {
+            // 一人称でもオフハンド／ホットバーの待機ブレードは描画する
+            this.renderOffhandItem(matrixStack, bufferIn, lightIn, entity);
+            return;
+        }
+
         this.renderOffhandItem(matrixStack, bufferIn, lightIn, entity);
 
         float motionYOffset = 1.5f;

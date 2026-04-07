@@ -377,4 +377,167 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
             UserPoseOverrider.invertRot(matrixStack, entity, partialTicks);
         }
     }
+
+    public void renderFirstPerson(PoseStack matrixStack, MultiBufferSource bufferIn, int lightIn, T entity, float partialTicks) {
+        renderMainBladeInternal(matrixStack, bufferIn, lightIn, entity, partialTicks, false);
+    }
+
+    private void renderMainBladeInternal(PoseStack matrixStack, MultiBufferSource bufferIn, int lightIn,
+                                         T entity, float partialTicks, boolean applyUserPose) {
+
+        float motionYOffset = 1.5f;
+        double motionScale = 1.5 / 12.0;
+        double modelScaleBase = 0.0078125F;
+
+        ItemStack stack = entity.getItemInHand(InteractionHand.MAIN_HAND);
+        if (stack.isEmpty()) {
+            return;
+        }
+
+        if (entity.getType().is(EntityTypeTags.RENDER_LAYER_BLACKLIST)) {
+            return;
+        }
+
+        var s = ItemSlashBlade.getBladeState(stack);
+        MmdMotionPlayerGL2 mmp = getMotionPlayer();
+        if (s == null || mmp == null) {
+            return;
+        }
+
+        ComboState combo = ComboStateRegistry.REGISTRY.get(s.getComboSeq()) != null
+                ? ComboStateRegistry.REGISTRY.get(s.getComboSeq())
+                : ComboStateRegistry.NONE.get();
+
+        double time = TimeValueHelper.getMSecFromTicks(
+                Math.max(0, entity.level().getGameTime() - s.getLastActionTime()) + partialTicks);
+
+        while (combo != null && combo != ComboStateRegistry.NONE.get() && combo.getTimeoutMS() < time) {
+            time -= combo.getTimeoutMS();
+
+            combo = ComboStateRegistry.REGISTRY.get(combo.getNextOfTimeout(entity)) != null
+                    ? ComboStateRegistry.REGISTRY.get(combo.getNextOfTimeout(entity))
+                    : ComboStateRegistry.NONE.get();
+        }
+
+        if (combo == ComboStateRegistry.NONE.get()) {
+            combo = ComboStateRegistry.REGISTRY.get(s.getComboRoot()) != null
+                    ? ComboStateRegistry.REGISTRY.get(s.getComboRoot())
+                    : ComboStateRegistry.STANDBY.get();
+        }
+
+        MmdVmdMotionMc motion = null;
+        if (combo != null) {
+            motion = BladeMotionManager.getInstance().getMotion(combo.getMotionLoc());
+        }
+
+        double maxSeconds = 0;
+        try {
+            mmp.setVmd(motion);
+            if (motion != null) {
+                maxSeconds = TimeValueHelper.getMSecFromFrames(motion.getMaxFrame());
+            }
+        } catch (Exception e) {
+            SlashBlade.LOGGER.warn(e);
+        }
+
+        double start = 0;
+        if (combo != null) {
+            start = TimeValueHelper.getMSecFromFrames(combo.getStartFrame());
+        }
+
+        double end = 0;
+        if (combo != null) {
+            end = TimeValueHelper.getMSecFromFrames(combo.getEndFrame());
+        }
+
+        double span = Math.abs(end - start);
+        span = Math.min(maxSeconds, span);
+
+        if (combo != null && combo.getLoop() && span > 0) {
+            time = time % span;
+        }
+        time = Math.min(span, time);
+        time = start + time;
+
+        try {
+            mmp.updateMotion((float) time);
+        } catch (MmdException e) {
+            SlashBlade.LOGGER.warn(e);
+        }
+
+        try (MSAutoCloser msacA = MSAutoCloser.pushMatrix(matrixStack)) {
+
+            if (applyUserPose) {
+                setUserPose(matrixStack, entity, partialTicks);
+            }
+
+            matrixStack.translate(0, motionYOffset, 0);
+            matrixStack.scale((float) motionScale, (float) motionScale, (float) motionScale);
+            matrixStack.mulPose(Axis.ZP.rotationDegrees(180));
+
+            ResourceLocation textureLocation = s.getTexture().orElse(DefaultResources.resourceDefaultTexture);
+            WavefrontObject obj = BladeModelManager.getInstance()
+                    .getModel(s.getModel().orElse(DefaultResources.resourceDefaultModel));
+
+            try (MSAutoCloser msac = MSAutoCloser.pushMatrix(matrixStack)) {
+                int idx = mmp.getBoneIndexByName("hardpointA");
+
+                if (idx >= 0) {
+                    float[] buf = new float[16];
+                    mmp._skinning_mat[idx].getValue(buf);
+
+                    Matrix4f mat = VectorHelper.matrix4fFromArray(buf);
+
+                    matrixStack.scale(-1, 1, 1);
+                    PoseStack.Pose entry = matrixStack.last();
+                    entry.pose().mul(mat);
+                    matrixStack.scale(-1, 1, 1);
+                }
+
+                float modelScale = (float) (modelScaleBase * (1.0f / motionScale));
+                matrixStack.scale(modelScale, modelScale, modelScale);
+
+                String part = s.isBroken() ? "blade_damaged" : "blade";
+
+                BladeRenderState.renderOverrided(stack, obj, part, textureLocation, matrixStack, bufferIn, lightIn);
+                BladeRenderState.renderOverridedLuminous(stack, obj, part + "_luminous", textureLocation, matrixStack, bufferIn, lightIn);
+            }
+
+            try (MSAutoCloser msac = MSAutoCloser.pushMatrix(matrixStack)) {
+                int idx = mmp.getBoneIndexByName("hardpointB");
+
+                if (idx >= 0) {
+                    float[] buf = new float[16];
+                    mmp._skinning_mat[idx].getValue(buf);
+
+                    Matrix4f mat = VectorHelper.matrix4fFromArray(buf);
+
+                    matrixStack.scale(-1, 1, 1);
+                    PoseStack.Pose entry = matrixStack.last();
+                    entry.pose().mul(mat);
+                    matrixStack.scale(-1, 1, 1);
+                }
+
+                float modelScale = (float) (modelScaleBase * (1.0f / motionScale));
+                matrixStack.scale(modelScale, modelScale, modelScale);
+
+                BladeRenderState.renderOverrided(stack, obj, "sheath", textureLocation, matrixStack, bufferIn, lightIn);
+                BladeRenderState.renderOverridedLuminous(stack, obj, "sheath_luminous", textureLocation, matrixStack, bufferIn, lightIn);
+
+                if (s.isCharged(entity)) {
+                    float f = entity.tickCount + partialTicks;
+                    BladeRenderState.renderChargeEffect(
+                            stack,
+                            f,
+                            obj,
+                            "effect",
+                            ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper_armor.png"),
+                            matrixStack,
+                            bufferIn,
+                            lightIn
+                    );
+                }
+            }
+        }
+    }
 }

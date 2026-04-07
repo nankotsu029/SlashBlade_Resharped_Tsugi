@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import mods.flammpfeil.slashblade.client.renderer.layers.LayerMainBlade;
 import mods.flammpfeil.slashblade.client.renderer.util.MSAutoCloser;
+import mods.flammpfeil.slashblade.event.client.UserPoseOverrider;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
@@ -92,30 +93,36 @@ public class BladeFirstPersonRender {
         if (ItemSlashBlade.getBladeState(mainHand) == null) {
             return;
         }
-
-        // 今描こうとしている stack と player's main hand がズレていたら描かない
         if (!ItemStack.isSameItemSameComponents(mainHand, renderedStack)) {
             return;
         }
 
         BladeModel.user = player;
 
+        float partialTicks = mc.getTimer().getGameTimeDeltaPartialTick(true);
+
         try (MSAutoCloser ignored = MSAutoCloser.pushMatrix(poseStack)) {
             PoseStack.Pose last = poseStack.last();
             last.pose().identity();
             last.normal().identity();
 
+            float yaw = player.getViewYRot(partialTicks);
+            float pitch = player.getViewXRot(partialTicks);
+
+            // 一人称では item renderer の行列を identity にしているので、
+            // LayerMainBlade が期待する向きの基底をここで再構成する。
+            poseStack.mulPose(Axis.YP.rotationDegrees(-yaw));
+            UserPoseOverrider.anotherPoseRotP(poseStack, player, partialTicks);
+            UserPoseOverrider.invertRot(poseStack, player, partialTicks);
+            UserPoseOverrider.anotherPoseRotN(poseStack, player, partialTicks);
+
             poseStack.translate(0.0f, 0.0f, -0.5f);
             poseStack.mulPose(Axis.ZP.rotationDegrees(180.0f));
             poseStack.scale(1.2F, 1.0F, 1.0F);
 
-            // 旧コード準拠: カメラの pitch だけを同期
-            poseStack.mulPose(Axis.XP.rotationDegrees(-player.getXRot()));
+            poseStack.mulPose(Axis.XP.rotationDegrees(-pitch));
 
-            float partialTicks = mc.getTimer().getGameTimeDeltaPartialTick(true);
-            layer.render(poseStack, buffer, light, player,
-                    0.0f, 0.0f, partialTicks,
-                    0.0f, 0.0f, 0.0f);
+            layer.renderFirstPerson(poseStack, buffer, light, player, partialTicks);
         }
     }
 }

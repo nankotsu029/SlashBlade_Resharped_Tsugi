@@ -11,13 +11,11 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
-import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
-/**
- * Created by Furia on 2016/02/07.
- */
 public class BladeFirstPersonRender {
     private LayerMainBlade<LocalPlayer, ?> layer = null;
     private EntityRenderer<?> currentRenderer = null;
@@ -46,54 +44,78 @@ public class BladeFirstPersonRender {
             return;
         }
         currentRenderer = renderer;
-        if (renderer instanceof RenderLayerParent) {
-            layer = new LayerMainBlade((RenderLayerParent) renderer);
+        if (renderer instanceof RenderLayerParent<?, ?> parent) {
+            layer = new LayerMainBlade(parent);
         } else {
             layer = null;
         }
     }
 
-    public void render(PoseStack matrixStack, MultiBufferSource bufferIn, int combinedLightIn) {
+    private static boolean isMainHandFirstPersonContext(LocalPlayer player, ItemDisplayContext ctx) {
+        return player.getMainArm() == HumanoidArm.RIGHT
+                ? ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND
+                : ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
+    }
+
+    public void render(ItemStack renderedStack, ItemDisplayContext transformType,
+                       PoseStack poseStack, MultiBufferSource buffer, int light) {
         Minecraft mc = Minecraft.getInstance();
         refreshLayer();
         if (layer == null) {
             return;
         }
 
-        boolean flag = mc.getCameraEntity() instanceof LivingEntity
-                && ((LivingEntity) mc.getCameraEntity()).isSleeping();
-        if (mc.gameMode != null && !(mc.options.getCameraType() == CameraType.FIRST_PERSON && !flag && !mc.options.hideGui
+        LocalPlayer player = mc.player;
+        if (player == null) {
+            return;
+        }
+
+        boolean sleeping = mc.getCameraEntity() instanceof LivingEntity living && living.isSleeping();
+        if (mc.gameMode != null && !(mc.options.getCameraType() == CameraType.FIRST_PERSON
+                && !sleeping
+                && !mc.options.hideGui
                 && !mc.gameMode.isAlwaysFlying())) {
             return;
         }
-        LocalPlayer player = mc.player;
-        ItemStack stack = null;
-        if (player != null) {
-            stack = player.getItemInHand(InteractionHand.MAIN_HAND);
-        }
-        if (stack != null && stack.isEmpty()) {
+
+        if (!isMainHandFirstPersonContext(player, transformType)) {
             return;
         }
-        if (stack != null && ItemSlashBlade.getBladeState(stack) == null) {
+
+        ItemStack mainHand = player.getMainHandItem();
+        if (mainHand.isEmpty()) {
             return;
         }
+        if (!(mainHand.getItem() instanceof ItemSlashBlade)) {
+            return;
+        }
+        if (ItemSlashBlade.getBladeState(mainHand) == null) {
+            return;
+        }
+
+        // 今描こうとしている stack と player's main hand がズレていたら描かない
+        if (!ItemStack.isSameItemSameComponents(mainHand, renderedStack)) {
+            return;
+        }
+
         BladeModel.user = player;
 
-        try (MSAutoCloser msac = MSAutoCloser.pushMatrix(matrixStack)) {
-            PoseStack.Pose me = matrixStack.last();
-            me.pose().identity();
-            me.normal().identity();
+        try (MSAutoCloser ignored = MSAutoCloser.pushMatrix(poseStack)) {
+            PoseStack.Pose last = poseStack.last();
+            last.pose().identity();
+            last.normal().identity();
 
-            matrixStack.translate(0.0f, 0.0f, -0.5f);
-            matrixStack.mulPose(Axis.ZP.rotationDegrees(180.0f));
-            matrixStack.scale(1.2F, 1.0F, 1.0F);
+            poseStack.translate(0.0f, 0.0f, -0.5f);
+            poseStack.mulPose(Axis.ZP.rotationDegrees(180.0f));
+            poseStack.scale(1.2F, 1.0F, 1.0F);
 
-            // no sync pitch
-            matrixStack.mulPose(Axis.XP.rotationDegrees(-mc.player.getXRot()));
+            // 旧コード準拠: カメラの pitch だけを同期
+            poseStack.mulPose(Axis.XP.rotationDegrees(-player.getXRot()));
 
-            // layer.disableOffhandRendering();
             float partialTicks = mc.getTimer().getGameTimeDeltaPartialTick(true);
-            layer.render(matrixStack, bufferIn, combinedLightIn, mc.player, 0, 0, partialTicks, 0, 0, 0);
+            layer.render(poseStack, buffer, light, player,
+                    0.0f, 0.0f, partialTicks,
+                    0.0f, 0.0f, 0.0f);
         }
     }
 }

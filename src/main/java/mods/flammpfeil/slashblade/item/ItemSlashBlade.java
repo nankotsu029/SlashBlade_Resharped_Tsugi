@@ -73,6 +73,7 @@ import java.util.function.Consumer;
 
 public class ItemSlashBlade extends SwordItem {
     protected static final ResourceLocation PLAYER_REACH_AMPLIFIER = SlashBlade.prefix("player_reach_amplifier");
+    private final ItemAttributeModifiers defaultModifiers;
 
     /** DataComponentType for per-stack blade state. Use stack.get(BLADESTATE) to read (nullable). */
     public static final DataComponentType<SlashBladeState> BLADESTATE = ModDataComponents.BLADE_STATE.get();
@@ -89,7 +90,8 @@ public class ItemSlashBlade extends SwordItem {
             Enchantments.THORNS);
 
     public ItemSlashBlade(Tier tier, int attackDamageIn, float attackSpeedIn, Properties builder) {
-        super(tier, withDefaultBladeState(builder).attributes(SwordItem.createAttributes(tier, attackDamageIn, attackSpeedIn)));
+        super(tier, withDefaultBladeState(builder));
+        this.defaultModifiers = SwordItem.createAttributes(tier, attackDamageIn, attackSpeedIn);
     }
 
     private static Properties withDefaultBladeState(Properties builder) {
@@ -169,7 +171,7 @@ public class ItemSlashBlade extends SwordItem {
 
     @Override
     public ItemAttributeModifiers getDefaultAttributeModifiers(ItemStack stack) {
-        ItemAttributeModifiers defaults = super.getDefaultAttributeModifiers(stack);
+        ItemAttributeModifiers defaults = this.defaultModifiers;
         SlashBladeState s = getBladeState(stack);
         if (s == null) {
             return defaults;

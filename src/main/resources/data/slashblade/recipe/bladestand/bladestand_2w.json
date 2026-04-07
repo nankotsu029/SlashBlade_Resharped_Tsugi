@@ -1,6 +1,7 @@
 {
   "type": "minecraft:crafting_shapeless",
-  "group":"bladestand",
+  "group": "bladestand",
+  "category": "misc",
   "ingredients": [
     {
       "item": "slashblade:proudsoul_crystal"
@@ -10,6 +11,7 @@
     }
   ],
   "result": {
-    "item": "slashblade:bladestand_2w"
+    "id": "slashblade:bladestand_2w",
+    "count": 1
   }
 }

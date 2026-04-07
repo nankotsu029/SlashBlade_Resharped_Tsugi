@@ -1,15 +1,18 @@
 package mods.flammpfeil.slashblade.recipe;
 
 import com.google.common.collect.Maps;
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.CraftingInput;
@@ -23,6 +26,7 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.function.Function;
 import java.util.Map;
 
 public class ProudsoulShapelessRecipe extends ShapelessRecipe {
@@ -92,10 +96,16 @@ public class ProudsoulShapelessRecipe extends ShapelessRecipe {
     }
 
     public static class Serializer implements RecipeSerializer<ProudsoulShapelessRecipe> {
+        private static final Codec<ItemStack> RESULT_CODEC = Codec.either(ItemStack.STRICT_CODEC, LegacyResult.CODEC)
+                .flatXmap(
+                        either -> either.map(DataResult::success, LegacyResult::toItemStack),
+                        stack -> DataResult.success(Either.left(stack))
+                );
+
         private static final MapCodec<ProudsoulShapelessRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
                 Codec.STRING.optionalFieldOf("group", "").forGetter(ProudsoulShapelessRecipe::getGroup),
                 CraftingBookCategory.CODEC.fieldOf("category").orElse(CraftingBookCategory.MISC).forGetter(ProudsoulShapelessRecipe::category),
-                ItemStack.STRICT_CODEC.fieldOf("result").forGetter(recipe -> recipe.getResultItem(null)),
+                RESULT_CODEC.fieldOf("result").forGetter(recipe -> recipe.getResultItem(null)),
                 Ingredient.CODEC_NONEMPTY.listOf().fieldOf("ingredients").flatXmap(
                         ingredients -> {
                             Ingredient[] array = ingredients.toArray(Ingredient[]::new);
@@ -145,6 +155,19 @@ public class ProudsoulShapelessRecipe extends ShapelessRecipe {
                 Ingredient.CONTENTS_STREAM_CODEC.encode(buf, ingredient);
             }
             ItemStack.STREAM_CODEC.encode(buf, recipe.getResultItem(null));
+        }
+
+        private record LegacyResult(ResourceLocation item, int count) {
+            private static final Codec<LegacyResult> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                    ResourceLocation.CODEC.fieldOf("item").forGetter(LegacyResult::item),
+                    Codec.INT.optionalFieldOf("count", 1).forGetter(LegacyResult::count)
+            ).apply(instance, LegacyResult::new));
+
+            private DataResult<ItemStack> toItemStack() {
+                return BuiltInRegistries.ITEM.getOptional(this.item)
+                        .map(itemHolder -> DataResult.success(new ItemStack(itemHolder, this.count)))
+                        .orElseGet(() -> DataResult.error(() -> "Unknown item in proudsoul recipe result: " + this.item));
+            }
         }
     }
 }

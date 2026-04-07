@@ -76,8 +76,7 @@ public class SlashBlade {
         ComboStateRegistry.COMBO_STATE.register(modBus);
         SlashArtsRegistry.SLASH_ARTS.register(modBus);
         SlashBladeCreativeGroup.CREATIVE_MODE_TABS.register(modBus);
-        RecipeSerializerRegistry.RECIPE_TYPES.register(modBus);
-        RecipeSerializerRegistry.RECIPE_SERIALIZER.register(modBus);
+        RecipeSerializerRegistry.RECIPE_SERIALIZERS.register(modBus);
         SpecialEffectsRegistry.SPECIAL_EFFECT.register(modBus);
         modBus.addListener(DataGen::dataGen);
     }

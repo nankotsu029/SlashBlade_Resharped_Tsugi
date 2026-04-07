@@ -110,12 +110,13 @@ public class SlashBladeSmithingRecipe implements SmithingRecipe {
         }
 
         resultState.setProudSoulCount(resultState.getProudSoulCount() + ingredientState.getProudSoulCount());
-        resultState.setKillCount(
+        resultState.setKillCount(resultState.getKillCount() + ingredientState.getKillCount());
+        resultState.setRefine(
                 SlashBladeConfig.DO_CRAFTING_SUM_REFINE.get()
-                        ? Math.max(resultState.getKillCount(), ingredientState.getKillCount())
-                        : resultState.getKillCount() + ingredientState.getKillCount()
+                        ? resultState.getRefine() + ingredientState.getRefine()
+                        : Math.max(resultState.getRefine(), ingredientState.getRefine())
         );
-        resultState.setRefine(resultState.getRefine() + ingredientState.getRefine());
+
         ItemSlashBlade.setBladeState(result, resultState);
         updateEnchantment(result, stack, access);
 

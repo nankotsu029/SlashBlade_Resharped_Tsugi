@@ -49,6 +49,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
@@ -71,8 +72,7 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public class ItemSlashBlade extends SwordItem {
-    protected static final ResourceLocation ATTACK_DAMAGE_AMPLIFIER = SlashBlade.prefix("attack_damage_amplifier");
-    // TODO(neoforge-1.21.1): Reintroduce custom reach via the 1.21 attribute/item system once the old NeoForge reach attribute usage is replaced.
+    protected static final ResourceLocation PLAYER_REACH_AMPLIFIER = SlashBlade.prefix("player_reach_amplifier");
 
     /** DataComponentType for per-stack blade state. Use stack.get(BLADESTATE) to read (nullable). */
     public static final DataComponentType<SlashBladeState> BLADESTATE = ModDataComponents.BLADE_STATE.get();
@@ -188,20 +188,27 @@ public class ItemSlashBlade extends SwordItem {
         }
 
         double damage = (double) baseAttackModifier + attackAmplifier - 1F;
+        s.setAttackAmplifier(attackAmplifier);
 
         var event = new SlashBladeEvent.UpdateAttackEvent(stack, s, damage);
         NeoForge.EVENT_BUS.post(event);
 
         ItemAttributeModifiers.Builder builder = ItemAttributeModifiers.builder();
         for (ItemAttributeModifiers.Entry entry : defaults.modifiers()) {
-            if (!entry.attribute().equals(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)) {
+            if (!entry.attribute().is(Attributes.ATTACK_DAMAGE)) {
                 builder.add(entry.attribute(), entry.modifier(), entry.slot());
             }
         }
 
         builder.add(
-                net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE,
+                Attributes.ATTACK_DAMAGE,
                 new AttributeModifier(BASE_ATTACK_DAMAGE_ID, event.getNewDamage(), AttributeModifier.Operation.ADD_VALUE),
+                EquipmentSlotGroup.MAINHAND);
+        builder.add(
+                Attributes.ENTITY_INTERACTION_RANGE,
+                new AttributeModifier(PLAYER_REACH_AMPLIFIER,
+                        s.isBroken() ? ReachModifier.brokenRangeModifier() : ReachModifier.bladeRangeModifier(),
+                        AttributeModifier.Operation.ADD_VALUE),
                 EquipmentSlotGroup.MAINHAND);
         return builder.build();
     }
@@ -271,6 +278,7 @@ public class ItemSlashBlade extends SwordItem {
         if (maxDamage < 0) {
             return;
         }
+        ItemStack previousState = stack.copy();
         SlashBladeState state = getOrCreateBladeState(stack);
         if (state.isBroken()) {
             if (damage <= 0 && !state.isSealed()) {
@@ -281,6 +289,7 @@ public class ItemSlashBlade extends SwordItem {
         }
         state.setDamage(damage);
         setBladeState(stack, state);
+        refreshEquippedBladeAttributes(previousState, stack);
     }
 
     @Override
@@ -293,6 +302,7 @@ public class ItemSlashBlade extends SwordItem {
             return 0;
         }
 
+        ItemStack previousState = stack.copy();
         SlashBladeState state = getOrCreateBladeState(stack);
         boolean current = state.isBroken();
 
@@ -305,11 +315,7 @@ public class ItemSlashBlade extends SwordItem {
 
         if (current != state.isBroken()) {
             if (entity != null) {
-                dropProudSoulsOnBroken(stack, entity, state);
-                if (this.isDestructable(stack)) {
-                    spawnBrokenBladeEntity(stack, entity, state);
-                }
-                setBladeState(stack, state);
+                getOnBroken(stack).accept(entity);
             }
 
             onBroken.accept(stack.getItem());
@@ -326,14 +332,39 @@ public class ItemSlashBlade extends SwordItem {
             stack.shrink(1);
         }
 
+        if (current != state.isBroken()) {
+            refreshEquippedBladeAttributes(entity, previousState, stack);
+        }
+
         return amount;
+    }
+
+    private static void refreshEquippedBladeAttributes(ItemStack previousState, ItemStack currentState) {
+        if (currentState.getEntityRepresentation() instanceof LivingEntity living) {
+            refreshEquippedBladeAttributes(living, previousState, currentState);
+        }
+    }
+
+    private static void refreshEquippedBladeAttributes(@Nullable LivingEntity living, ItemStack previousState, ItemStack currentState) {
+        if (living == null) {
+            refreshEquippedBladeAttributes(previousState, currentState);
+            return;
+        }
+
+        if (living.getMainHandItem() == currentState) {
+            living.onEquipItem(EquipmentSlot.MAINHAND, previousState, currentState);
+        } else if (living.getOffhandItem() == currentState) {
+            living.onEquipItem(EquipmentSlot.OFFHAND, previousState, currentState);
+        }
     }
 
     public static Consumer<LivingEntity> getOnBroken(ItemStack stack) {
         return user -> {
             SlashBladeState state = getOrCreateBladeState(stack);
             dropProudSoulsOnBroken(stack, user, state);
-            spawnBrokenBladeEntity(stack, user, state);
+            if (stack.getItem() instanceof ItemSlashBlade bladeItem && bladeItem.isDestructable(stack)) {
+                spawnBrokenBladeEntity(stack, user, state);
+            }
             setBladeState(stack, state);
         };
     }

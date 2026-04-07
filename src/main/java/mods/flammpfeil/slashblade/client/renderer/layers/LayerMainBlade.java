@@ -390,7 +390,7 @@ public class LayerMainBlade<T extends LivingEntity, M extends EntityModel<T>> ex
                 matrixStack.mulPose(Axis.XP.rotation(vec3f.getX())); // yaw
                 matrixStack.translate(0, -0.7d, 0);
             }
-        } else {
+        } else if (!UserPoseOverrider.UsePoseOverrider) {
             UserPoseOverrider.invertRot(matrixStack, entity, partialTicks);
         }
     }

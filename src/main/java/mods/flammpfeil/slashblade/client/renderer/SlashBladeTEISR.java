@@ -71,8 +71,7 @@ public class SlashBladeTEISR extends BlockEntityWithoutLevelRenderer {
         if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
                 || transformType == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
             try (MSAutoCloser msacA = MSAutoCloser.pushMatrix(matrixStack)) {
-                matrixStack.translate(0.5f, 0.5f, 0.5f);
-                renderIcon(stack, matrixStack, bufferIn, combinedLightIn, 0.0095f);
+                BladeFirstPersonRender.getInstance().render(matrixStack, bufferIn, combinedLightIn);
             }
             return true;
         }

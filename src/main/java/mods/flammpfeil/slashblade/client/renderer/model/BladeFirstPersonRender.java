@@ -20,18 +20,11 @@ import net.minecraft.world.item.ItemStack;
  */
 public class BladeFirstPersonRender {
     private LayerMainBlade<LocalPlayer, ?> layer = null;
+    private EntityRenderer<?> currentRenderer = null;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private BladeFirstPersonRender() {
-        Minecraft mc = Minecraft.getInstance();
-
-        EntityRenderer<?> renderer = null;
-        if (mc.player != null) {
-            renderer = mc.getEntityRenderDispatcher().getRenderer(mc.player);
-        }
-        if (renderer instanceof RenderLayerParent) {
-            layer = new LayerMainBlade((RenderLayerParent) renderer);
-        }
+        refreshLayer();
     }
 
     private static final class SingletonHolder {
@@ -42,12 +35,31 @@ public class BladeFirstPersonRender {
         return SingletonHolder.instance;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void refreshLayer() {
+        Minecraft mc = Minecraft.getInstance();
+        EntityRenderer<?> renderer = null;
+        if (mc.player != null) {
+            renderer = mc.getEntityRenderDispatcher().getRenderer(mc.player);
+        }
+        if (renderer == currentRenderer) {
+            return;
+        }
+        currentRenderer = renderer;
+        if (renderer instanceof RenderLayerParent) {
+            layer = new LayerMainBlade((RenderLayerParent) renderer);
+        } else {
+            layer = null;
+        }
+    }
+
     public void render(PoseStack matrixStack, MultiBufferSource bufferIn, int combinedLightIn) {
+        Minecraft mc = Minecraft.getInstance();
+        refreshLayer();
         if (layer == null) {
             return;
         }
 
-        Minecraft mc = Minecraft.getInstance();
         boolean flag = mc.getCameraEntity() instanceof LivingEntity
                 && ((LivingEntity) mc.getCameraEntity()).isSleeping();
         if (mc.gameMode != null && !(mc.options.getCameraType() == CameraType.FIRST_PERSON && !flag && !mc.options.hideGui
@@ -65,6 +77,7 @@ public class BladeFirstPersonRender {
         if (stack != null && ItemSlashBlade.getBladeState(stack) == null) {
             return;
         }
+        BladeModel.user = player;
 
         try (MSAutoCloser msac = MSAutoCloser.pushMatrix(matrixStack)) {
             PoseStack.Pose me = matrixStack.last();

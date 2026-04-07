@@ -82,7 +82,6 @@ public class SlashBlade {
         modBus.addListener(DataGen::dataGen);
 
         modBus.addListener(SlashBladeLayerEvent::onAddLayers);
-        NeoForge.EVENT_BUS.addListener(SlashBladeLayerEvent.getInstance()::onRenderHand);
     }
 
     private void setup(final FMLCommonSetupEvent event) {

@@ -25,7 +25,6 @@ public final class SlashBladeClient {
         modBus.addListener(ClientHandler::doClientStuff);
         modBus.addListener(ClientHandler::registerKeyMapping);
         modBus.addListener(ClientHandler::bakeModels);
-        modBus.addListener(SlashBladeLayerEvent::onAddLayers);
         modBus.addListener(ClientHandler::onCreativeTagBuilding);
         modBus.addListener(ClientHandler::onTextureAtlasStitched);
         modBus.addListener(PreloadedModelEvent::registerResourceLoaders);

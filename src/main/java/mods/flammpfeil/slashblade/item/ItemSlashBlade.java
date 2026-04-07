@@ -293,16 +293,25 @@ public class ItemSlashBlade extends SwordItem {
             return 0;
         }
 
-        var cap = Objects.requireNonNull(getBladeState(stack), "ItemStack has no active BLADE_STATE component");
-        boolean current = cap.isBroken();
+        SlashBladeState state = getOrCreateBladeState(stack);
+        boolean current = state.isBroken();
 
         if (stack.getDamageValue() + amount >= stack.getMaxDamage()) {
             amount = 0;
             stack.setDamageValue(stack.getMaxDamage() - 1);
-            cap.setBroken(!NeoForge.EVENT_BUS.post(new SlashBladeEvent.BreakEvent(stack, cap)).isCanceled());
+            state.setBroken(!NeoForge.EVENT_BUS.post(new SlashBladeEvent.BreakEvent(stack, state)).isCanceled());
+            setBladeState(stack, state);
         }
 
-        if (current != cap.isBroken()) {
+        if (current != state.isBroken()) {
+            if (entity != null) {
+                dropProudSoulsOnBroken(stack, entity, state);
+                if (this.isDestructable(stack)) {
+                    spawnBrokenBladeEntity(stack, entity, state);
+                }
+                setBladeState(stack, state);
+            }
+
             onBroken.accept(stack.getItem());
             if (entity instanceof ServerPlayer player) {
                 CriteriaTriggers.CONSUME_ITEM.trigger(player, stack);
@@ -313,7 +322,7 @@ public class ItemSlashBlade extends SwordItem {
             }
         }
 
-        if (cap.isBroken() && this.isDestructable(stack)) {
+        if (state.isBroken() && this.isDestructable(stack)) {
             stack.shrink(1);
         }
 
@@ -321,80 +330,94 @@ public class ItemSlashBlade extends SwordItem {
     }
 
     public static Consumer<LivingEntity> getOnBroken(ItemStack stack) {
-        return (user) -> {
-            var state = Objects.requireNonNull(getBladeState(stack), "ItemStack has no active BLADE_STATE component");
-            if (stack.isEnchanted()) {
-                int count = state.getProudSoulCount() >= SlashBladeConfig.MAX_ENCHANTED_PROUDSOUL_DROP.get() * 100 ?
-                        SlashBladeConfig.MAX_ENCHANTED_PROUDSOUL_DROP.get() : Math.max(1, state.getProudSoulCount() / 100);
-                List<Holder.Reference<Enchantment>> enchantments = user.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).listElements()
-                        .filter(stack::isPrimaryItemFor)
-                        .filter(enchantment -> !SlashBladeConfig.NON_DROPPABLE_ENCHANTMENT.get()
-                                .contains(enchantment.key().location().toString()))
-                        .toList();
+        return user -> {
+            SlashBladeState state = getOrCreateBladeState(stack);
+            dropProudSoulsOnBroken(stack, user, state);
+            spawnBrokenBladeEntity(stack, user, state);
+            setBladeState(stack, state);
+        };
+    }
+
+    private static void dropProudSoulsOnBroken(ItemStack stack, LivingEntity user, SlashBladeState state) {
+        if (stack.isEnchanted()) {
+            int count = state.getProudSoulCount() >= SlashBladeConfig.MAX_ENCHANTED_PROUDSOUL_DROP.get() * 100
+                    ? SlashBladeConfig.MAX_ENCHANTED_PROUDSOUL_DROP.get()
+                    : Math.max(1, state.getProudSoulCount() / 100);
+            List<Holder.Reference<Enchantment>> enchantments = user.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).listElements()
+                    .filter(stack::isPrimaryItemFor)
+                    .filter(enchantment -> !SlashBladeConfig.NON_DROPPABLE_ENCHANTMENT.get()
+                            .contains(enchantment.key().location().toString()))
+                    .toList();
+            if (!enchantments.isEmpty()) {
                 for (int i = 0; i < count; i += 1) {
-                    ItemStack enchanted_soul = new ItemStack(SlashBladeItems.PROUDSOUL_TINY.get());
-                    Holder<Enchantment> enchant = enchantments.get(user.getRandom().nextInt(0, enchantments.size()));
-                    if (enchant != null) {
-                        enchanted_soul.enchant(enchant, 1);
-                        ItemEntity itemEntity = new ItemEntity(user.level(), user.getX(), user.getY(), user.getZ(),
-                                enchanted_soul);
-                        itemEntity.setDefaultPickUpDelay();
-                        user.level().addFreshEntity(itemEntity);
-                    }
+                    ItemStack enchantedSoul = new ItemStack(SlashBladeItems.PROUDSOUL_TINY.get());
+                    Holder<Enchantment> enchant = enchantments.get(user.getRandom().nextInt(enchantments.size()));
+                    enchantedSoul.enchant(enchant, 1);
+                    ItemEntity itemEntity = new ItemEntity(user.level(), user.getX(), user.getY(), user.getZ(),
+                            enchantedSoul);
+                    itemEntity.setDefaultPickUpDelay();
+                    user.level().addFreshEntity(itemEntity);
                     state.setProudSoulCount(state.getProudSoulCount() - 100);
                 }
             }
-            ItemStack soul = new ItemStack(SlashBladeItems.PROUDSOUL_TINY.get());
+        }
 
-            int count = state.getProudSoulCount() >= SlashBladeConfig.MAX_PROUDSOUL_DROP.get() * 100 ?
-                    SlashBladeConfig.MAX_PROUDSOUL_DROP.get() : Math.max(1, state.getProudSoulCount() / 100);
+        ItemStack soul = new ItemStack(SlashBladeItems.PROUDSOUL_TINY.get());
+        int count = state.getProudSoulCount() >= SlashBladeConfig.MAX_PROUDSOUL_DROP.get() * 100
+                ? SlashBladeConfig.MAX_PROUDSOUL_DROP.get()
+                : Math.max(1, state.getProudSoulCount() / 100);
 
-            soul.setCount(count);
-            state.setProudSoulCount(state.getProudSoulCount() - (count * 100));
+        soul.setCount(count);
+        state.setProudSoulCount(state.getProudSoulCount() - (count * 100));
 
-            ItemEntity itementity = new ItemEntity(user.level(), user.getX(), user.getY(), user.getZ(), soul);
-            BladeItemEntity e = new BladeItemEntity(SlashBlade.RegistryEvents.BladeItem, user.level()) {
-                static final String isReleased = "isReleased";
+        ItemEntity itemEntity = new ItemEntity(user.level(), user.getX(), user.getY(), user.getZ(), soul);
+        itemEntity.setDefaultPickUpDelay();
+        user.level().addFreshEntity(itemEntity);
+    }
 
-                @Override
-                public boolean causeFallDamage(float distance, float damageMultiplier, @NotNull DamageSource ds) {
+    private static void spawnBrokenBladeEntity(ItemStack stack, LivingEntity user, SlashBladeState state) {
+        ItemStack brokenBlade = stack.copy();
+        brokenBlade.setCount(1);
+        setBladeState(brokenBlade, state.copy());
 
-                    CompoundTag tag = this.getPersistentData();
+        ItemEntity itemEntity = new ItemEntity(user.level(), user.getX(), user.getY(), user.getZ(), brokenBlade);
+        BladeItemEntity e = new BladeItemEntity(SlashBlade.RegistryEvents.BladeItem, user.level()) {
+            static final String isReleased = "isReleased";
 
-                    if (!tag.getBoolean(isReleased)) {
-                        this.getPersistentData().putBoolean(isReleased, true);
+            @Override
+            public boolean causeFallDamage(float distance, float damageMultiplier, @NotNull DamageSource ds) {
+                CompoundTag tag = this.getPersistentData();
 
-                        if (this.level() instanceof ServerLevel) {
-                            Entity thrower = getOwner();
+                if (!tag.getBoolean(isReleased)) {
+                    this.getPersistentData().putBoolean(isReleased, true);
 
-                            if (thrower != null) {
-                                thrower.getPersistentData().remove(BREAK_ACTION_TIMEOUT);
-                            }
+                    if (this.level() instanceof ServerLevel) {
+                        Entity thrower = getOwner();
+
+                        if (thrower != null) {
+                            thrower.getPersistentData().remove(BREAK_ACTION_TIMEOUT);
                         }
                     }
-
-                    return super.causeFallDamage(distance, damageMultiplier, ds);
                 }
-            };
 
-            e.restoreFrom(itementity);
-            e.init();
-            e.push(0, 0.4, 0);
-
-            e.setModel(state.getModel().orElse(DefaultResources.resourceDefaultModel));
-            e.setTexture(state.getTexture().orElse(DefaultResources.resourceDefaultTexture));
-
-            e.setPickUpDelay(20 * 2);
-            e.setGlowingTag(true);
-
-            e.setAirSupply(-1);
-
-            // TODO(neoforge-1.21.1): Restore BladeItemEntity ownership metadata if pickup/credit logic still depends on it.
-
-            user.level().addFreshEntity(e);
-
-            user.getPersistentData().putLong(BREAK_ACTION_TIMEOUT, user.level().getGameTime() + 20 * 5);
+                return super.causeFallDamage(distance, damageMultiplier, ds);
+            }
         };
+
+        e.restoreFrom(itemEntity);
+        e.init();
+        e.push(0, 0.4, 0);
+
+        e.setModel(state.getModel().orElse(DefaultResources.resourceDefaultModel));
+        e.setTexture(state.getTexture().orElse(DefaultResources.resourceDefaultTexture));
+
+        e.setPickUpDelay(20 * 2);
+        e.setGlowingTag(true);
+        e.setAirSupply(-1);
+
+        // TODO(neoforge-1.21.1): Restore BladeItemEntity ownership metadata if pickup/credit logic still depends on it.
+        user.level().addFreshEntity(e);
+        user.getPersistentData().putLong(BREAK_ACTION_TIMEOUT, user.level().getGameTime() + 20 * 5);
     }
 
     @Override

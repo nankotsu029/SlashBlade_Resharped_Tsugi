@@ -62,10 +62,9 @@ public class BladeFirstPersonRender {
         BladeModel.user = player;
 
         try (MSAutoCloser ignored = MSAutoCloser.pushMatrix(event.getPoseStack())) {
-            HumanoidArm arm = player.getMainArm();
-            applyItemArmTransform(event.getPoseStack(), arm, event.getEquipProgress());
-            applyItemArmAttackTransform(event.getPoseStack(), arm, event.getSwingProgress());
-            renderBladeInHand(stack, arm, event.getPoseStack(), event.getMultiBufferSource(), event.getPackedLight());
+            HumanoidArm displayArm = player.getMainArm() == HumanoidArm.RIGHT ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
+            applyFirstPersonTransform(event.getPoseStack(), displayArm, event.getEquipProgress(), event.getSwingProgress());
+            renderBladeInHand(stack, displayArm, event.getPoseStack(), event.getMultiBufferSource(), event.getPackedLight());
         }
     }
 
@@ -81,8 +80,9 @@ public class BladeFirstPersonRender {
         poseStack.translate(armSign * 0.5f, 0.3f, 0.55f);
         poseStack.scale(BLADE_SCALE, BLADE_SCALE, BLADE_SCALE);
         poseStack.translate(0.0f, 0.15f, 0.0f);
-        poseStack.mulPose(Axis.YP.rotationDegrees(90.0f * armSign));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(-90.0f * armSign));
+        poseStack.mulPose(Axis.YP.rotationDegrees(90.0f));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(-90.0f));
+        poseStack.mulPose(Axis.YP.rotationDegrees(-15.0f * armSign));
 
         String renderTarget = types.contains(SwordType.BROKEN) ? "blade_damaged" : "blade";
         BladeRenderState.renderOverrided(stack, model, renderTarget, textureLocation, poseStack, buffer, light);
@@ -90,19 +90,13 @@ public class BladeFirstPersonRender {
                 poseStack, buffer, light);
     }
 
-    private static void applyItemArmTransform(PoseStack poseStack, HumanoidArm arm, float equipProgress) {
+    private static void applyFirstPersonTransform(PoseStack poseStack, HumanoidArm arm,
+                                                  float equipProgress, float swingProgress) {
         float armSign = arm == HumanoidArm.RIGHT ? 1.0f : -1.0f;
-        poseStack.translate(armSign * 0.56f, -0.52f + equipProgress * -0.6f, -0.72f);
-    }
-
-    private static void applyItemArmAttackTransform(PoseStack poseStack, HumanoidArm arm, float swingProgress) {
-        float armSign = arm == HumanoidArm.RIGHT ? 1.0f : -1.0f;
-        float squaredSwingSin = Mth.sin(swingProgress * swingProgress * Mth.PI);
         float rootSwingSin = Mth.sin(Mth.sqrt(swingProgress) * Mth.PI);
 
-        poseStack.mulPose(Axis.YP.rotationDegrees(armSign * (45.0f + squaredSwingSin * -20.0f)));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(armSign * rootSwingSin * -20.0f));
-        poseStack.mulPose(Axis.XP.rotationDegrees(rootSwingSin * -80.0f));
-        poseStack.mulPose(Axis.YP.rotationDegrees(armSign * -45.0f));
+        poseStack.translate(armSign * 0.18f, -0.25f + equipProgress * -0.18f, -0.18f + rootSwingSin * -0.05f);
+        poseStack.mulPose(Axis.ZP.rotationDegrees(-6.0f * armSign));
+        poseStack.mulPose(Axis.XP.rotationDegrees(8.0f + rootSwingSin * 10.0f));
     }
 }

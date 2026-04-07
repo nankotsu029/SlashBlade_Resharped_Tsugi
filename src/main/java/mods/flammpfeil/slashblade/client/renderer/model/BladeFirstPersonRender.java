@@ -2,29 +2,26 @@ package mods.flammpfeil.slashblade.client.renderer.model;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import mods.flammpfeil.slashblade.client.renderer.SlashBladeTEISR;
-import mods.flammpfeil.slashblade.client.renderer.model.obj.WavefrontObject;
-import mods.flammpfeil.slashblade.client.renderer.util.BladeRenderState;
+import mods.flammpfeil.slashblade.client.renderer.layers.LayerMainBlade;
 import mods.flammpfeil.slashblade.client.renderer.util.MSAutoCloser;
 import mods.flammpfeil.slashblade.item.ItemSlashBlade;
-import mods.flammpfeil.slashblade.item.SwordType;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionHand;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.event.RenderHandEvent;
 
-import java.util.EnumSet;
-
 public class BladeFirstPersonRender {
-    private static final float BLADE_SCALE = 0.008f;
+    private LayerMainBlade<LocalPlayer, ?> layer = null;
+    private EntityRenderer<?> currentRenderer = null;
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private BladeFirstPersonRender() {
+        refreshLayer();
     }
 
     private static final class SingletonHolder {
@@ -35,68 +32,78 @@ public class BladeFirstPersonRender {
         return SingletonHolder.instance;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void refreshLayer() {
+        Minecraft mc = Minecraft.getInstance();
+        EntityRenderer<?> renderer = null;
+        if (mc.player != null) {
+            renderer = mc.getEntityRenderDispatcher().getRenderer(mc.player);
+        }
+        if (renderer == currentRenderer) {
+            return;
+        }
+        currentRenderer = renderer;
+        if (renderer instanceof RenderLayerParent<?, ?> parent) {
+            layer = new LayerMainBlade(parent);
+        } else {
+            layer = null;
+        }
+    }
+
     public void render(RenderHandEvent event) {
         Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (player == null) {
-            return;
-        }
-        if (event.getHand() != InteractionHand.MAIN_HAND) {
-            return;
-        }
-        if (mc.options.getCameraType() != CameraType.FIRST_PERSON || mc.options.hideGui) {
+        refreshLayer();
+        if (layer == null) {
             return;
         }
 
-        ItemStack stack = event.getItemStack();
-        if (!(stack.getItem() instanceof ItemSlashBlade)) {
+        LocalPlayer player = mc.player;
+        if (player == null || event.getHand() != net.minecraft.world.InteractionHand.MAIN_HAND) {
             return;
         }
-        if (ItemSlashBlade.getBladeState(stack) == null) {
+
+        boolean sleeping = mc.getCameraEntity() instanceof LivingEntity living && living.isSleeping();
+        if (mc.options.getCameraType() != CameraType.FIRST_PERSON || mc.options.hideGui || sleeping) {
             return;
         }
-        if (!ItemStack.isSameItemSameComponents(player.getMainHandItem(), stack)) {
+        if (mc.gameMode != null && mc.gameMode.isAlwaysFlying()) {
+            return;
+        }
+
+        ItemStack mainHand = player.getMainHandItem();
+        if (mainHand.isEmpty() || !(mainHand.getItem() instanceof ItemSlashBlade)) {
+            return;
+        }
+        if (ItemSlashBlade.getBladeState(mainHand) == null) {
+            return;
+        }
+        if (!ItemStack.isSameItemSameComponents(mainHand, event.getItemStack())) {
             return;
         }
 
         BladeModel.user = player;
 
         try (MSAutoCloser ignored = MSAutoCloser.pushMatrix(event.getPoseStack())) {
-            HumanoidArm displayArm = player.getMainArm() == HumanoidArm.RIGHT ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-            applyFirstPersonTransform(event.getPoseStack(), displayArm, event.getEquipProgress(), event.getSwingProgress());
-            renderBladeInHand(stack, displayArm, event.getPoseStack(), event.getMultiBufferSource(), event.getPackedLight());
+            PoseStack.Pose last = event.getPoseStack().last();
+            last.pose().identity();
+            last.normal().identity();
+
+            float armSign = player.getMainArm() == HumanoidArm.RIGHT ? -1.0f : 1.0f;
+
+            event.getPoseStack().translate(armSign * 0.35f, 0.0f, -0.5f);
+            event.getPoseStack().mulPose(Axis.ZP.rotationDegrees(180.0f));
+            event.getPoseStack().scale(1.2F, 1.0F, 1.0F);
+
+            // 1.20.1 互換: pitch のみ同期する。
+            event.getPoseStack().mulPose(Axis.XP.rotationDegrees(-event.getInterpolatedPitch()));
+
+            layer.renderFirstPerson(
+                    event.getPoseStack(),
+                    event.getMultiBufferSource(),
+                    event.getPackedLight(),
+                    player,
+                    event.getPartialTick()
+            );
         }
-    }
-
-    private void renderBladeInHand(ItemStack stack, HumanoidArm arm, PoseStack poseStack,
-                                   MultiBufferSource buffer, int light) {
-        EnumSet<SwordType> types = SwordType.from(stack);
-        ResourceLocation modelLocation = SlashBladeTEISR.resolveModelLocation(stack);
-        ResourceLocation textureLocation = SlashBladeTEISR.resolveTextureLocation(stack);
-        WavefrontObject model = BladeModelManager.getInstance().getModel(modelLocation);
-
-        float armSign = arm == HumanoidArm.RIGHT ? 1.0f : -1.0f;
-
-        poseStack.translate(armSign * 0.5f, 0.3f, 0.55f);
-        poseStack.scale(BLADE_SCALE, BLADE_SCALE, BLADE_SCALE);
-        poseStack.translate(0.0f, 0.15f, 0.0f);
-        poseStack.mulPose(Axis.YP.rotationDegrees(90.0f));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(-90.0f));
-        poseStack.mulPose(Axis.YP.rotationDegrees(-15.0f * armSign));
-
-        String renderTarget = types.contains(SwordType.BROKEN) ? "blade_damaged" : "blade";
-        BladeRenderState.renderOverrided(stack, model, renderTarget, textureLocation, poseStack, buffer, light);
-        BladeRenderState.renderOverridedLuminous(stack, model, renderTarget + "_luminous", textureLocation,
-                poseStack, buffer, light);
-    }
-
-    private static void applyFirstPersonTransform(PoseStack poseStack, HumanoidArm arm,
-                                                  float equipProgress, float swingProgress) {
-        float armSign = arm == HumanoidArm.RIGHT ? 1.0f : -1.0f;
-        float rootSwingSin = Mth.sin(Mth.sqrt(swingProgress) * Mth.PI);
-
-        poseStack.translate(armSign * 0.18f, -0.25f + equipProgress * -0.18f, -0.18f + rootSwingSin * -0.05f);
-        poseStack.mulPose(Axis.ZP.rotationDegrees(-6.0f * armSign));
-        poseStack.mulPose(Axis.XP.rotationDegrees(8.0f + rootSwingSin * 10.0f));
     }
 }
